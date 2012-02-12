@@ -2,6 +2,7 @@
 
 in vec4 Position;
 out vec3 vPosition;
+out float vId;
 
 uniform mat4 Projection;
 uniform mat4 Modelview;
@@ -11,6 +12,7 @@ uniform mat4 ModelMatrix;
 void main()
 {
     vPosition = Position.xyz;
+    vId = float(gl_VertexID);
     gl_Position = Projection * Modelview * Position;
 }
 
@@ -116,13 +118,18 @@ void main()
 
 layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
+uniform bool Nailboard;
+uniform vec2 SpriteSize;
+in float vId[1];
+out float gId;
 
 void main()
 {
     vec4 P = gl_in[0].gl_Position;
-    float L = 0.1;
-    vec4 U = L * vec4(1, 0, 0, 0);
-    vec4 V = L * vec4(0, 1, 0, 0);
+    vec4 U = SpriteSize.x * vec4(1, 0, 0, 0);
+    vec4 V = SpriteSize.y * vec4(0, 1, 0, 0);
+
+    gId = 2.0; // gl_PrimitiveIDIn; // vId[0];
     
     gl_Position = P - U - V; EmitVertex();
     gl_Position = P + U - V; EmitVertex();
@@ -134,9 +141,20 @@ void main()
 
 -- Sprite.FS
 
+in float gId;
 out vec4 FragColor;
+uniform bool Nailboard;
 
 void main()
 {
     FragColor = vec4(0.1, 0.125, 0.25, 1);
+    if (Nailboard) {
+        uint i = uint(gId);
+        uint r = i & 1u;
+        uint g = i & 2u;
+        uint b = i & 4u;
+        FragColor.r = (r == 0u) ? 1.0 : 0.0;
+        FragColor.g = (g == 0u) ? 1.0 : 0.0;
+        FragColor.b = (b == 0u) ? 1.0 : 0.0;
+    }
 }

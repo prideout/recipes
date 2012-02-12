@@ -4,6 +4,7 @@
 
 struct {
     int IndexCount;
+    int VertexCount;
     float Theta;
     Matrix4 Projection;
     Matrix4 OrthoMatrix;
@@ -67,7 +68,6 @@ void PezInitialize()
     Globals.Theta = 0;
     Globals.Mouse.z = -1;
 
-    glEnable(GL_DEPTH_TEST);
     glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
 }
 
@@ -104,7 +104,21 @@ void PezRender()
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
     glDrawElements(GL_TRIANGLES, Globals.IndexCount, GL_UNSIGNED_SHORT, 0);
+    glDisable(GL_DEPTH_TEST);
+
+    float aspect = (float) PezGetConfig().Width / PezGetConfig().Height;
+
+    glUseProgram(Globals.SpriteProgram);
+    glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
+    glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
+    glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
+    glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
+    glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
+    glUniform1i(u("Nailboard"), GL_TRUE);
+    glUniform2f(u("SpriteSize"), 1.0f, aspect);
+    glDrawArrays(GL_POINTS, 0, 2); // VertexCount
 
     if (Globals.Mouse.z < 0) {
         return;
@@ -126,10 +140,9 @@ void PezRender()
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("Modelview"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
-    //glUniformMatrix1i(u("Nailboard"), GL_TRUE);
-    glDisable(GL_DEPTH_TEST);
+    glUniform1i(u("Nailboard"), GL_FALSE);
+    glUniform2f(u("SpriteSize"), 0.05f, 0.05f * aspect);
     glDrawArrays(GL_POINTS, 0, 1);
-    glEnable(GL_DEPTH_TEST);
 }
 
 void PezHandleMouse(int x, int y, int action)
@@ -229,9 +242,9 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    int vertexCount = slices * stacks * 3;
+    Globals.VertexCount = slices * stacks * 3;
     int vertexStride = sizeof(float) * 3;
-    GLsizeiptr size = vertexCount * vertexStride;
+    GLsizeiptr size = Globals.VertexCount * vertexStride;
     GLfloat* positions = (GLfloat*) malloc(size);
 
     GLfloat* position = positions;
