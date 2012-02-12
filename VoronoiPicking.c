@@ -108,7 +108,8 @@ void PezRender()
     glDrawElements(GL_TRIANGLES, Globals.IndexCount, GL_UNSIGNED_SHORT, 0);
     glDisable(GL_DEPTH_TEST);
 
-    float aspect = (float) PezGetConfig().Width / PezGetConfig().Height;
+    const float w = PezGetConfig().Width;
+    const float h = PezGetConfig().Height;
 
     glUseProgram(Globals.SpriteProgram);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
@@ -117,7 +118,8 @@ void PezRender()
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
     glUniform1i(u("Nailboard"), GL_TRUE);
-    glUniform2f(u("SpriteSize"), 1.0f, aspect);
+    glUniform2f(u("SpriteSize"), 1.0f, w / h);
+    glUniform2f(u("HalfViewport"), w / 2, h / 2);
     glDrawArrays(GL_POINTS, 0, Globals.VertexCount);
 
     if (Globals.Mouse.z < 0) {
@@ -141,7 +143,7 @@ void PezRender()
     glUniformMatrix4fv(u("Modelview"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
     glUniform1i(u("Nailboard"), GL_FALSE);
-    glUniform2f(u("SpriteSize"), 0.05f, 0.05f * aspect);
+    glUniform2f(u("SpriteSize"), 0.05f, 0.05f * w / h);
     glDrawArrays(GL_POINTS, 0, 1);
 }
 

@@ -122,20 +122,25 @@ uniform bool Nailboard;
 uniform vec2 SpriteSize;
 in int vId[1];
 flat out int gId;
+out vec2 gCenterCoord;
+uniform vec2 HalfViewport;
+
+vec2 toFragCoord(vec4 v)
+{
+    return HalfViewport * (1.0 + v.xy / v.w);
+}
 
 void main()
 {
     vec4 P = gl_in[0].gl_Position;
-    vec4 U = SpriteSize.x * vec4(1, 0, 0, 0);
-    vec4 V = SpriteSize.y * vec4(0, 1, 0, 0);
-
+    vec4 U = vec4(SpriteSize.x, 0, 0, 0);
+    vec4 V = vec4(0, SpriteSize.y, 0, 0);
     gId = vId[0];
-    
+    gCenterCoord = toFragCoord(P);
     gl_Position = P - U - V; EmitVertex();
     gl_Position = P + U - V; EmitVertex();
     gl_Position = P - U + V; EmitVertex();
     gl_Position = P + U + V; EmitVertex();
-
     EndPrimitive();
 }
 
@@ -143,7 +148,9 @@ void main()
 
 flat in int gId;
 out vec4 FragColor;
+in vec2 gCenterCoord;
 uniform bool Nailboard;
+uniform vec2 ViewportSize;
 
 void main()
 {
@@ -156,5 +163,13 @@ void main()
         FragColor.r = (r == 0) ? 1.0 : 0.0;
         FragColor.g = (g == 0) ? 1.0 : 0.0;
         FragColor.b = (b == 0) ? 1.0 : 0.0;
+
+        float L = distance(gl_FragCoord.xy, gCenterCoord);
+        FragColor.rgb = vec3(L, L, L) / 5.0;
+        //gl_FragDepth = L;
+
+        //FragColor.b = 0;
+        //FragColor.rg = gl_FragCoord.xy / ViewportSize;
+        //FragColor.rg = gCenterCoord / ViewportSize;
     }
 }
