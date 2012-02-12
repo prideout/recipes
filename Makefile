@@ -4,7 +4,13 @@ LIBS=-lX11 -lGL
 DEMOS=ClipPlanes DeepOpacity Raycast
 SHARED=glew.o pez.o
 
+run: VoronoiPicking
+	./VoronoiPicking
+
 all: $(DEMOS)
+
+VoronoiPicking: VoronoiPicking.o VoronoiPicking.glsl $(SHARED)
+	$(CC) $@.o $(SHARED) -o $@ $(LIBS)
 
 ClipPlanes: ClipPlanes.o ClipPlanes.glsl $(SHARED)
 	$(CC) $@.o $(SHARED) -o $@ $(LIBS)
