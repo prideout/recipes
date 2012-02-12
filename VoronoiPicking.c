@@ -36,7 +36,7 @@ PezConfig PezGetConfig()
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 1;
-    config.VerticalSync = 0;
+    config.VerticalSync = 1;
     return config;
 }
 
@@ -109,7 +109,7 @@ void PezRender()
 
     const float w = PezGetConfig().Width;
     const float h = PezGetConfig().Height;
-    const float s = 10.0;
+    const float s = 64;
 
     glClear(GL_DEPTH_BUFFER_BIT);
     glUseProgram(Globals.SpriteProgram);
@@ -119,9 +119,14 @@ void PezRender()
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
     glUniform1i(u("Nailboard"), GL_TRUE);
-    glUniform2f(u("SpriteSize"), s, s * w / h);
-    glUniform2f(u("HalfViewport"), w / 2, h / 2);
+    glUniform2f(u("SpriteSize"), s, s);
+    glUniform2f(u("HalfViewport"), w / 2.0f, h / 2.0f);
+    glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDrawArrays(GL_POINTS, 0, Globals.VertexCount);
+    glDisable(GL_BLEND);
 
     if (Globals.Mouse.z < 0) {
         return;
@@ -144,9 +149,11 @@ void PezRender()
     glUniformMatrix4fv(u("Modelview"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
     glUniform1i(u("Nailboard"), GL_FALSE);
-    glUniform2f(u("SpriteSize"), 0.05f, 0.05f * w / h);
+    glUniform2f(u("SpriteSize"), 32, 32);
     glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
     glDrawArrays(GL_POINTS, 0, 1);
+    glDisable(GL_BLEND);
 }
 
 void PezHandleMouse(int x, int y, int action)

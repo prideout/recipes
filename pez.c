@@ -4699,7 +4699,6 @@ unsigned int GetMicroseconds()
 int main(int argc, char** argv)
 {
     int attrib[] = {
-        GLX_SAMPLES, 4,
         GLX_RENDER_TYPE, GLX_RGBA_BIT,
         GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
         GLX_DOUBLEBUFFER, True,
@@ -4708,12 +4707,9 @@ int main(int argc, char** argv)
         GLX_BLUE_SIZE, 8,
         GLX_ALPHA_SIZE, 8,
         GLX_DEPTH_SIZE, 24,
-        GLX_SAMPLE_BUFFERS, 1,
         None
     };
     
-    attrib[1] = PezGetConfig().Multisampling ? 4 : 1;
- 
     PlatformContext context;
 
     context.MainDisplay = XOpenDisplay(NULL);
@@ -4724,9 +4720,38 @@ int main(int argc, char** argv)
     PFNGLXCHOOSEFBCONFIGPROC glXChooseFBConfig = (PFNGLXCHOOSEFBCONFIGPROC)glXGetProcAddress((GLubyte*)"glXChooseFBConfig");
     GLXFBConfig *fbc = glXChooseFBConfig(context.MainDisplay, screen, attrib, &fbcount);
     if (!fbc)
-        pezFatal("Failed to retrieve a framebuffer config\n");;
+        pezFatal("Failed to retrieve a framebuffer config\n");
 
-    PFNGLXGETVISUALFROMFBCONFIGPROC glXGetVisualFromFBConfig = (PFNGLXGETVISUALFROMFBCONFIGPROC)glXGetProcAddress((GLubyte*)"glXGetVisualFromFBConfig");
+    PFNGLXGETVISUALFROMFBCONFIGPROC glXGetVisualFromFBConfig = (PFNGLXGETVISUALFROMFBCONFIGPROC) glXGetProcAddress((GLubyte*)"glXGetVisualFromFBConfig");
+    if (!glXGetVisualFromFBConfig)
+        pezFatal("Failed to get a GLX function pointer\n");
+
+    PFNGLXGETFBCONFIGATTRIBPROC glXGetFBConfigAttrib = (PFNGLXGETFBCONFIGATTRIBPROC) glXGetProcAddress((GLubyte*)"glXGetFBConfigAttrib");
+    if (!glXGetFBConfigAttrib)
+        pezFatal("Failed to get a GLX function pointer\n");
+
+    if (PezGetConfig().Multisampling) {
+        int best_fbc = -1, worst_fbc = -1, best_num_samp = -1, worst_num_samp = 999;
+        for ( int i = 0; i < fbcount; i++ ) {
+            XVisualInfo *vi = glXGetVisualFromFBConfig( context.MainDisplay, fbc[i] );
+            if (!vi) {
+                continue;
+            }
+            int samp_buf, samples;
+            glXGetFBConfigAttrib( context.MainDisplay, fbc[i], GLX_SAMPLE_BUFFERS, &samp_buf );
+            glXGetFBConfigAttrib( context.MainDisplay, fbc[i], GLX_SAMPLES       , &samples  );
+            //printf( "  Matching fbconfig %d, visual ID 0x%2x: SAMPLE_BUFFERS = %d,"
+            //        " SAMPLES = %d\n", 
+            //        i, (unsigned int) vi->visualid, samp_buf, samples );
+            if ( best_fbc < 0 || (samp_buf && samples > best_num_samp) )
+                best_fbc = i, best_num_samp = samples;
+            if ( worst_fbc < 0 || !samp_buf || samples < worst_num_samp )
+                worst_fbc = i, worst_num_samp = samples;
+            XFree( vi );
+        }
+        fbc[0] = fbc[ best_fbc ];
+    }
+
     XVisualInfo *visinfo = glXGetVisualFromFBConfig(context.MainDisplay, fbc[0]);
     if (!visinfo)
         pezFatal("Error: couldn't create OpenGL window with this pixel format.\n");
@@ -4750,6 +4775,13 @@ int main(int argc, char** argv)
         &attr
     );
     XMapWindow(context.MainDisplay, context.MainWindow);
+
+    PFNGLXSWAPINTERVALSGIPROC glXSwapIntervalSGI = (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddress((GLubyte*)"glXSwapIntervalSGI");
+    if (glXSwapIntervalSGI) {
+        if (!PezGetConfig().VerticalSync) {
+            glXSwapIntervalSGI(0);
+        }
+    }
 
     GLXContext glcontext;
     if (0 && PEZ_FORWARD_COMPATIBLE_GL) {
