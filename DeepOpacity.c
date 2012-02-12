@@ -8,9 +8,9 @@ static const int GridSize = 96;
 static const int ViewSamples = 96 * 2;
 static const int LightSamples = 96;
 
-GlrConfig GetConfig()
+PezConfig PezGetConfig()
 {
-    GlrConfig config;
+    PezConfig config;
     config.Title = "DeepOpacity";
     config.Width = 853;
     config.Height = 480;
@@ -48,14 +48,14 @@ struct ProgramsRec {
     GLuint Light;
 } Programs;
 
-GLuint LoadProgram(char* vs, char* gs, char* fs);
-Volume CreateVolume(GLsizei w, GLsizei h, GLsizei d, int numComponents);
-GLuint CurrentProgram();
+static GLuint LoadProgram(char* vs, char* gs, char* fs);
+static Volume CreateVolume(GLsizei w, GLsizei h, GLsizei d, int numComponents);
+static GLuint CurrentProgram();
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
 
-void Initialize()
+void PezInitialize()
 {
     Programs.Raycast = LoadProgram("DeepOpacity.VS", "DeepOpacity.GS", "DeepOpacity.FS");
     Programs.Light = LoadProgram("DeepOpacity.Fluid.Vertex", "DeepOpacity.Fluid.PickLayer", "DeepOpacity.Light.Cache");
@@ -77,12 +77,12 @@ void Initialize()
     Volumes.Density = CreateVolume(GridSize, GridSize, GridSize, 1);
     Volumes.LightCache = CreateVolume(GridSize, GridSize, GridSize, 1);
 
-    GlrPixels pixels = glrLoadPixels("Smoke96.pbo");
+    PezPixels pixels = pezLoadPixels("Smoke96.pbo");
     glBindTexture(GL_TEXTURE_3D, Volumes.Density.TextureHandle);
     glTexImage3D(GL_TEXTURE_3D, 0, pixels.InternalFormat,
         pixels.Width, pixels.Height, pixels.Depth,
         0, pixels.Format, pixels.Type, pixels.Frames);
-    glrFreePixels(pixels);
+    pezFreePixels(pixels);
 
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -91,9 +91,9 @@ void Initialize()
     glEnableVertexAttribArray(0);
 }
 
-void Render()
+void PezRender()
 {
-    GlrConfig cfg = GetConfig();
+    PezConfig cfg = PezGetConfig();
     Vector3 rayOrigin = V4GetXYZ(M4MulP3(M4Transpose(Matrices.Modelview), EyePosition));
     GLfloat* mvp = &Matrices.ModelviewProjection.col0.x;
     GLfloat* mv = &Matrices.Modelview.col0.x;
@@ -143,7 +143,7 @@ void Render()
     glActiveTexture(GL_TEXTURE0);
 }
 
-void Update(float dt)
+void PezUpdate(float dt)
 {
     static float theta = 0;
     theta += dt / 2.0f;
@@ -157,7 +157,7 @@ void Update(float dt)
     Point3 p = {1, 1, 2};
     LightPosition = T3MulP3(T3MakeRotationY(2 * theta), p);
 
-    GlrConfig cfg = GetConfig();
+    PezConfig cfg = PezGetConfig();
     float aspectRatio = (float) cfg.Width / cfg.Height;
     Matrices.Projection = M4MakePerspective(
         FieldOfView, aspectRatio,
@@ -166,16 +166,20 @@ void Update(float dt)
     Matrices.ModelviewProjection = M4Mul(Matrices.Projection, Matrices.Modelview);
 }
 
-GLuint LoadProgram(char* vsKey, char* gsKey, char* fsKey)
+void PezHandleMouse(int x, int y, int action)
 {
-    const char* vsSource = glrGetShader(vsKey);
-    const char* gsSource = glrGetShader(gsKey);
-    const char* fsSource = glrGetShader(fsKey);
+}
+
+static GLuint LoadProgram(char* vsKey, char* gsKey, char* fsKey)
+{
+    const char* vsSource = pezGetShader(vsKey);
+    const char* gsSource = pezGetShader(gsKey);
+    const char* fsSource = pezGetShader(fsKey);
 
     const char* msg = "Can't find %s shader: '%s'.\n";
-    glrCheck(vsSource != 0, msg, "vertex", vsKey);
-    glrCheck(gsKey == 0 || gsSource != 0, msg, "geometry", gsKey);
-    glrCheck(fsKey == 0 || fsSource != 0, msg, "fragment", fsKey);
+    pezCheck(vsSource != 0, msg, "vertex", vsKey);
+    pezCheck(gsKey == 0 || gsSource != 0, msg, "geometry", gsKey);
+    pezCheck(fsKey == 0 || fsSource != 0, msg, "fragment", fsKey);
     
     GLint compileSuccess;
     GLchar compilerSpew[256];
@@ -186,7 +190,7 @@ GLuint LoadProgram(char* vsKey, char* gsKey, char* fsKey)
     glCompileShader(vsHandle);
     glGetShaderiv(vsHandle, GL_COMPILE_STATUS, &compileSuccess);
     glGetShaderInfoLog(vsHandle, sizeof(compilerSpew), 0, compilerSpew);
-    glrCheck(compileSuccess, "Can't compile %s:\n%s", vsKey, compilerSpew);
+    pezCheck(compileSuccess, "Can't compile %s:\n%s", vsKey, compilerSpew);
     glAttachShader(programHandle, vsHandle);
 
     GLuint gsHandle;
@@ -196,7 +200,7 @@ GLuint LoadProgram(char* vsKey, char* gsKey, char* fsKey)
         glCompileShader(gsHandle);
         glGetShaderiv(gsHandle, GL_COMPILE_STATUS, &compileSuccess);
         glGetShaderInfoLog(gsHandle, sizeof(compilerSpew), 0, compilerSpew);
-        glrCheck(compileSuccess, "Can't compile %s:\n%s", gsKey, compilerSpew);
+        pezCheck(compileSuccess, "Can't compile %s:\n%s", gsKey, compilerSpew);
         glAttachShader(programHandle, gsHandle);
     }
     
@@ -207,7 +211,7 @@ GLuint LoadProgram(char* vsKey, char* gsKey, char* fsKey)
         glCompileShader(fsHandle);
         glGetShaderiv(fsHandle, GL_COMPILE_STATUS, &compileSuccess);
         glGetShaderInfoLog(fsHandle, sizeof(compilerSpew), 0, compilerSpew);
-        glrCheck(compileSuccess, "Can't compile %s:\n%s", fsKey, compilerSpew);
+        pezCheck(compileSuccess, "Can't compile %s:\n%s", fsKey, compilerSpew);
         glAttachShader(programHandle, fsHandle);
     }
 
@@ -218,17 +222,17 @@ GLuint LoadProgram(char* vsKey, char* gsKey, char* fsKey)
     glGetProgramInfoLog(programHandle, sizeof(compilerSpew), 0, compilerSpew);
 
     if (!linkSuccess) {
-        glrPrintString("Link error.\n");
-        if (vsKey) glrPrintString("Vertex Shader: %s\n", vsKey);
-        if (gsKey) glrPrintString("Geometry Shader: %s\n", gsKey);
-        if (fsKey) glrPrintString("Fragment Shader: %s\n", fsKey);
-        glrPrintString("%s\n", compilerSpew);
+        pezPrintString("Link error.\n");
+        if (vsKey) pezPrintString("Vertex Shader: %s\n", vsKey);
+        if (gsKey) pezPrintString("Geometry Shader: %s\n", gsKey);
+        if (fsKey) pezPrintString("Fragment Shader: %s\n", fsKey);
+        pezPrintString("%s\n", compilerSpew);
     }
     
     return programHandle;
 }
 
-Volume CreateVolume(GLsizei w, GLsizei h, GLsizei d, int numComponents)
+static Volume CreateVolume(GLsizei w, GLsizei h, GLsizei d, int numComponents)
 {
     GLuint fboHandle;
     glGenFramebuffers(1, &fboHandle);
@@ -249,21 +253,21 @@ Volume CreateVolume(GLsizei w, GLsizei h, GLsizei d, int numComponents)
         case 2: internalFmt = GL_RG16F; fmt = GL_RG; break;
         case 3: internalFmt = GL_RGB16F; fmt = GL_RGB; break;
         case 4: internalFmt = GL_RGBA16F; fmt = GL_RGBA; break;
-        default: internalFmt = fmt = 0; glrFatal("%d components", numComponents);
+        default: internalFmt = fmt = 0; pezFatal("%d components", numComponents);
     }
     
     GLenum type = GL_HALF_FLOAT;
     glTexImage3D(GL_TEXTURE_3D, 0, internalFmt, w, h, d, 0, fmt, type, 0);
-    glrCheck(GL_NO_ERROR == glGetError(), "Unable to create volume texture");
+    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create volume texture");
 
     GLuint colorbuffer;
     glGenRenderbuffers(1, &colorbuffer);
     glBindRenderbuffer(GL_RENDERBUFFER, colorbuffer);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, textureHandle, 0);
-    glrCheck(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
+    pezCheck(GL_NO_ERROR == glGetError(), "Unable to attach color buffer");
 
     GLenum fboStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    glrCheck(GL_FRAMEBUFFER_COMPLETE == fboStatus, "Unable to create FBO.");
+    pezCheck(GL_FRAMEBUFFER_COMPLETE == fboStatus, "Unable to create FBO.");
 
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -273,7 +277,7 @@ Volume CreateVolume(GLsizei w, GLsizei h, GLsizei d, int numComponents)
     return volume;
 }
 
-GLuint CurrentProgram()
+static GLuint CurrentProgram()
 {
     GLuint p;
     glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &p);

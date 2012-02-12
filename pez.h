@@ -1,83 +1,88 @@
-#define GLR_MAINLOOP 1
-#define GLR_FORWARD_COMPATIBLE_GL 0
-
 #pragma once
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#define PEZ_MAINLOOP 1
+
+#define PEZ_MOUSE_HANDLER 1
+
+#define PEZ_DROP_HANDLER 1
+
 #include "glew.h"
 
-typedef struct GlrConfigRec
+#define PEZ_FORWARD_COMPATIBLE_GL 1
+
+typedef struct PezConfigRec
 {
     const char* Title;
     int Width;
     int Height;
     int Multisampling;
     int VerticalSync;
-} GlrConfig;
+} PezConfig;
 
-#ifdef GLR_MAINLOOP
-GlrConfig GetConfig();
-void Initialize();
-void Render();
-void Update(float seconds);
+#ifdef PEZ_MAINLOOP
+PezConfig PezGetConfig();
+void PezInitialize();
+void PezRender();
+void PezUpdate(float seconds);
 
-#ifdef GLR_MOUSE_HANDLER
-void HandleMouse(int x, int y, int action);
+#ifdef PEZ_MOUSE_HANDLER
+void PezHandleMouse(int x, int y, int action);
 #endif
 
-#ifdef GLR_DROP_HANDLER
-void ReceiveDrop(const char* filename);
+#ifdef PEZ_DROP_HANDLER
+void PezReceiveDrop(const char* filename);
 #endif
 
 #else
-void glrSwapBuffers();
+void pezSwapBuffers();
 #endif
 
-enum {GLR_DOWN, GLR_UP, GLR_MOVE, GLR_DOUBLECLICK};
+enum {PEZ_DOWN, PEZ_UP, PEZ_MOVE, PEZ_DOUBLECLICK};
 #define TwoPi (6.28318531f)
 #define Pi (3.14159265f)
 #define countof(A) (sizeof(A) / sizeof(A[0]))
 
-void glrPrintString(const char* pStr, ...);
-void glrFatal(const char* pStr, ...);
-void glrCheck(int condition, ...);
-int glrIsPressing(char key);
-const char* glrResourcePath();
-const char* glrOpenFileDialog();
-const char* glrGetDesktopFolder();
+void pezPrintString(const char* pStr, ...);
+void pezFatal(const char* pStr, ...);
+void pezCheck(int condition, ...);
+int pezIsPressing(char key);
+const char* pezResourcePath();
+const char* pezOpenFileDialog();
+const char* pezGetDesktopFolder();
 
-int glrInit();
-int glrShutdown();
-int glrAddPath(const char* pathPrefix, const char* pathSuffix);
-const char* glrGetShader(const char* effectKey);
-const char* glrGetError();
-int glrAddDirective(const char* token, const char* directive);
+int pezInit();
+int pezShutdown();
+int pezAddPath(const char* pathPrefix, const char* pathSuffix);
+const char* pezGetShader(const char* effectKey);
+const char* pezGetError();
+int pezAddDirective(const char* token, const char* directive);
 
 
-typedef struct GlrAttribRec {
+typedef struct PezAttribRec {
     const GLchar* Name;
     GLint Size;
     GLenum Type;
     GLsizei Stride;
     int FrameCount;
     GLvoid* Frames;
-} GlrAttrib;
+} PezAttrib;
 
-typedef struct GlrVertsRec {
+typedef struct PezVertsRec {
     int AttribCount;
     int IndexCount;
     int VertexCount;
     GLenum IndexType;
     GLsizeiptr IndexBufferSize;
-    GlrAttrib* Attribs;
+    PezAttrib* Attribs;
     GLvoid* Indices;
     void* RawHeader;
-} GlrVerts;
+} PezVerts;
 
-typedef struct GlrPixelsRec {
+typedef struct PezPixelsRec {
     int FrameCount;
     GLsizei Width;
     GLsizei Height;
@@ -89,18 +94,18 @@ typedef struct GlrPixelsRec {
     GLsizeiptr BytesPerFrame;
     GLvoid* Frames;
     void* RawHeader;
-} GlrPixels;
+} PezPixels;
 
-GlrVerts glrLoadVerts(const char* filename);
-GlrVerts glrGenQuad(float left, float top, float right, float bottom);
-void glrFreeVerts(GlrVerts verts);
-void glrSaveVerts(GlrVerts verts, const char* filename);
+PezVerts pezLoadVerts(const char* filename);
+PezVerts pezGenQuad(float left, float top, float right, float bottom);
+void pezFreeVerts(PezVerts verts);
+void pezSaveVerts(PezVerts verts, const char* filename);
 
-GlrPixels glrLoadPixels(const char* filename);
-void glrFreePixels(GlrPixels pixels);
-void glrSavePixels(GlrPixels pixels, const char* filename);
-void glrRenderText(GlrPixels pixels, const char* message);
-GlrPixels glrGenNoise(GlrPixels desc, float alpha, float beta, int n);
+PezPixels pezLoadPixels(const char* filename);
+void pezFreePixels(PezPixels pixels);
+void pezSavePixels(PezPixels pixels, const char* filename);
+void pezRenderText(PezPixels pixels, const char* message);
+PezPixels pezGenNoise(PezPixels desc, float alpha, float beta, int n);
 #ifdef __cplusplus
 }
 #endif

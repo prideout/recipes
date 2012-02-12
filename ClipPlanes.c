@@ -14,15 +14,15 @@ struct SceneParameters {
     GLfloat PackedNormalMatrix[9];
 } Scene;
 
-GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
-GLuint CurrentProgram();
+static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
+static GLuint CurrentProgram();
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
 
-GlrConfig GetConfig()
+PezConfig PezGetConfig()
 {
-    GlrConfig config;
+    PezConfig config;
     config.Title = "ClipPlanes";
     config.Width = 853;
     config.Height = 480;
@@ -31,7 +31,7 @@ GlrConfig GetConfig()
     return config;
 }
 
-void CreateTorus(float major, float minor, int slices, int stacks)
+static void CreateTorus(float major, float minor, int slices, int stacks)
 {
     GLuint vao;
     glGenVertexArrays(1, &vao);
@@ -90,11 +90,11 @@ void CreateTorus(float major, float minor, int slices, int stacks)
     free(indices);
 }
 
-void Initialize()
+void PezInitialize()
 {
     LoadProgram("ClipPlanes.VS", "ClipPlanes.GS", "ClipPlanes.FS");
 
-    GlrConfig cfg = GetConfig();
+    PezConfig cfg = PezGetConfig();
     const float h = 5.0f;
     const float w = h * cfg.Width / cfg.Height;
     Scene.Projection = M4MakeFrustum(-w, w,   // left & right planes
@@ -112,7 +112,7 @@ void Initialize()
     glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
 }
 
-void Update(float seconds)
+void PezUpdate(float seconds)
 {
     const float RadiansPerSecond = 0.5f;
     Scene.Theta += seconds * RadiansPerSecond;
@@ -129,7 +129,7 @@ void Update(float seconds)
         Scene.PackedNormalMatrix[i] = M3GetElem(Scene.NormalMatrix, i/3, i%3);
 }
 
-void Render()
+void PezRender()
 {
     float* pModel = (float*) &Scene.ModelMatrix;
     float* pView = (float*) &Scene.ViewMatrix;
@@ -146,58 +146,58 @@ void Render()
     glDrawElements(GL_TRIANGLES, Scene.IndexCount, GL_UNSIGNED_SHORT, 0);
 }
 
-GLuint CurrentProgram()
+void PezHandleMouse(int x, int y, int action)
+{
+}
+
+static GLuint CurrentProgram()
 {
     GLuint p;
     glGetIntegerv(GL_CURRENT_PROGRAM, (GLint*) &p);
     return p;
 }
 
-GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey)
+static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey)
 {
     GLchar spew[256];
     GLint compileSuccess;
     GLuint programHandle = glCreateProgram();
 
-    const char* vsSource = glrGetShader(vsKey);
-    glrCheck(vsSource != 0, "Can't find vshader: %s\n", vsKey);
+    const char* vsSource = pezGetShader(vsKey);
+    pezCheck(vsSource != 0, "Can't find vshader: %s\n", vsKey);
     GLuint vsHandle = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vsHandle, 1, &vsSource, 0);
     glCompileShader(vsHandle);
     glGetShaderiv(vsHandle, GL_COMPILE_STATUS, &compileSuccess);
     glGetShaderInfoLog(vsHandle, sizeof(spew), 0, spew);
-    glrCheck(compileSuccess, "Can't compile vshader:\n%s", spew);
+    pezCheck(compileSuccess, "Can't compile vshader:\n%s", spew);
     glAttachShader(programHandle, vsHandle);
 
-    const char* gsSource = glrGetShader(gsKey);
-    glrCheck(gsSource != 0, "Can't find gshader: %s\n", gsKey);
+    const char* gsSource = pezGetShader(gsKey);
+    pezCheck(gsSource != 0, "Can't find gshader: %s\n", gsKey);
     GLuint gsHandle = glCreateShader(GL_GEOMETRY_SHADER);
     glShaderSource(gsHandle, 1, &gsSource, 0);
     glCompileShader(gsHandle);
     glGetShaderiv(gsHandle, GL_COMPILE_STATUS, &compileSuccess);
     glGetShaderInfoLog(gsHandle, sizeof(spew), 0, spew);
-    glrCheck(compileSuccess, "Can't compile gshader:\n%s", spew);
+    pezCheck(compileSuccess, "Can't compile gshader:\n%s", spew);
     glAttachShader(programHandle, gsHandle);
 
-    const char* fsSource = glrGetShader(fsKey);
-    glrCheck(fsSource != 0, "Can't find fshader: %s\n", fsKey);
+    const char* fsSource = pezGetShader(fsKey);
+    pezCheck(fsSource != 0, "Can't find fshader: %s\n", fsKey);
     GLuint fsHandle = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fsHandle, 1, &fsSource, 0);
     glCompileShader(fsHandle);
     glGetShaderiv(fsHandle, GL_COMPILE_STATUS, &compileSuccess);
     glGetShaderInfoLog(fsHandle, sizeof(spew), 0, spew);
-    glrCheck(compileSuccess, "Can't compile fshader:\n%s", spew);
+    pezCheck(compileSuccess, "Can't compile fshader:\n%s", spew);
     glAttachShader(programHandle, fsHandle);
 
     glLinkProgram(programHandle);
     GLint linkSuccess;
     glGetProgramiv(programHandle, GL_LINK_STATUS, &linkSuccess);
     glGetProgramInfoLog(programHandle, sizeof(spew), 0, spew);
-    glrCheck(linkSuccess, "Can't link shaders:\n%s", spew);
+    pezCheck(linkSuccess, "Can't link shaders:\n%s", spew);
     glUseProgram(programHandle);
     return programHandle;
-}
-
-void HandleMouse(int x, int y, int action)
-{
 }

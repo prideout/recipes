@@ -3278,31 +3278,31 @@ int n, r, l;
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE TYPES
 
-typedef struct glrListRec
+typedef struct pezListRec
 {
     bstring Key;
     bstring Value;
-    struct glrListRec* Next;
-} glrList;
+    struct pezListRec* Next;
+} pezList;
 
-typedef struct glrContextRec
+typedef struct pezContextRec
 {
     bstring ErrorMessage;
-    glrList* TokenMap;
-    glrList* ShaderMap;
-    glrList* LoadedEffects;
-    glrList* PathList;
-} glrContext;
+    pezList* TokenMap;
+    pezList* ShaderMap;
+    pezList* LoadedEffects;
+    pezList* PathList;
+} pezContext;
 
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE GLOBALS
 
-static glrContext* __glr__Context = 0;
+static pezContext* __pez__Context = 0;
 
 ///////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTIONS
 
-static int __glr__Alphanumeric(char c)
+static int __pez__Alphanumeric(char c)
 {
     return
         (c >= 'A' && c <= 'Z') ||
@@ -3311,11 +3311,11 @@ static int __glr__Alphanumeric(char c)
         c == '_' || c == '.';
 }
 
-static void __glr__FreeList(glrList* pNode)
+static void __pez__FreeList(pezList* pNode)
 {
     while (pNode)
     {
-        glrList* pNext = pNode->Next;
+        pezList* pNext = pNode->Next;
         bdestroy(pNode->Key);
         bdestroy(pNode->Value);
         free(pNode);
@@ -3323,11 +3323,11 @@ static void __glr__FreeList(glrList* pNode)
     }
 }
 
-static bstring __glr__LoadEffectContents(glrContext* gc, bstring effectName)
+static bstring __pez__LoadEffectContents(pezContext* gc, bstring effectName)
 {
     FILE* fp = 0;
     bstring effectFile, effectContents;
-    glrList* pPathList = gc->PathList;
+    pezList* pPathList = gc->PathList;
     
     while (pPathList)
     {
@@ -3354,8 +3354,8 @@ static bstring __glr__LoadEffectContents(glrContext* gc, bstring effectName)
     
     // Add a new entry to the front of gc->LoadedEffects
     {
-        glrList* temp = gc->LoadedEffects;
-        gc->LoadedEffects = (glrList*) calloc(sizeof(glrList), 1);
+        pezList* temp = gc->LoadedEffects;
+        gc->LoadedEffects = (pezList*) calloc(sizeof(pezList), 1);
         gc->LoadedEffects->Key = bstrcpy(effectName);
         gc->LoadedEffects->Next = temp;
     }
@@ -3370,25 +3370,25 @@ static bstring __glr__LoadEffectContents(glrContext* gc, bstring effectName)
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS
 
-int glrInit()
+int pezInit()
 {
-    if (__glr__Context)
+    if (__pez__Context)
     {
-        bdestroy(__glr__Context->ErrorMessage);
-        __glr__Context->ErrorMessage = bfromcstr("Already initialized.");
+        bdestroy(__pez__Context->ErrorMessage);
+        __pez__Context->ErrorMessage = bfromcstr("Already initialized.");
         return 0;
     }
 
-    __glr__Context = (glrContext*) calloc(sizeof(glrContext), 1);
+    __pez__Context = (pezContext*) calloc(sizeof(pezContext), 1);
     
-    glrAddPath("", "");
+    pezAddPath("", "");
 
     return 1;
 }
 
-int glrShutdown()
+int pezShutdown()
 {
-    glrContext* gc = __glr__Context;
+    pezContext* gc = __pez__Context;
 
     if (!gc)
     {
@@ -3397,21 +3397,21 @@ int glrShutdown()
 
     bdestroy(gc->ErrorMessage);
 
-    __glr__FreeList(gc->TokenMap);
-    __glr__FreeList(gc->ShaderMap);
-    __glr__FreeList(gc->LoadedEffects);
-    __glr__FreeList(gc->PathList);
+    __pez__FreeList(gc->TokenMap);
+    __pez__FreeList(gc->ShaderMap);
+    __pez__FreeList(gc->LoadedEffects);
+    __pez__FreeList(gc->PathList);
 
     free(gc);
-    __glr__Context = 0;
+    __pez__Context = 0;
 
     return 1;
 }
 
-int glrAddPath(const char* pathPrefix, const char* pathSuffix)
+int pezAddPath(const char* pathPrefix, const char* pathSuffix)
 {
-    glrContext* gc = __glr__Context;
-    glrList* temp;
+    pezContext* gc = __pez__Context;
+    pezList* temp;
 
     if (!gc)
     {
@@ -3419,7 +3419,7 @@ int glrAddPath(const char* pathPrefix, const char* pathSuffix)
     }
 
     temp = gc->PathList;
-    gc->PathList = (glrList*) calloc(sizeof(glrList), 1);
+    gc->PathList = (pezList*) calloc(sizeof(pezList), 1);
     gc->PathList->Key = bfromcstr(pathPrefix);
     gc->PathList->Value = bfromcstr(pathSuffix);
     gc->PathList->Next = temp;
@@ -3427,15 +3427,15 @@ int glrAddPath(const char* pathPrefix, const char* pathSuffix)
     return 1;
 }
 
-const char* glrGetShader(const char* pEffectKey)
+const char* pezGetShader(const char* pEffectKey)
 {
-    glrContext* gc = __glr__Context;
+    pezContext* gc = __pez__Context;
     bstring effectKey;
-    glrList* closestMatch = 0;
+    pezList* closestMatch = 0;
     struct bstrList* tokens;
     bstring effectName;
-    glrList* pLoadedEffect;
-    glrList* pShaderEntry;
+    pezList* pLoadedEffect;
+    pezList* pShaderEntry;
     bstring shaderKey = 0;
 
     if (!gc)
@@ -3470,7 +3470,7 @@ const char* glrGetShader(const char* pEffectKey)
     // If we haven't loaded this file yet, load it in
     if (!pLoadedEffect)
     {
-        bstring effectContents = __glr__LoadEffectContents(gc, effectName);
+        bstring effectContents = __pez__LoadEffectContents(gc, effectName);
         struct bstrList* lines = bsplit(effectContents, '\n');
         int lineNo;
 
@@ -3489,7 +3489,7 @@ const char* glrGetShader(const char* pEffectKey)
                 for (colNo = 2; colNo < blength(line); colNo++)
                 {
                     char c = line->data[colNo];
-                    if (__glr__Alphanumeric(c))
+                    if (__pez__Alphanumeric(c))
                     {
                         break;
                     }
@@ -3509,7 +3509,7 @@ const char* glrGetShader(const char* pEffectKey)
                     for (endCol = colNo; endCol < blength(line); endCol++)
                     {
                         char c = line->data[endCol];
-                        if (!__glr__Alphanumeric(c))
+                        if (!__pez__Alphanumeric(c))
                         {
                             break;
                         }
@@ -3520,8 +3520,8 @@ const char* glrGetShader(const char* pEffectKey)
 
                     // Add a new entry to the shader map.
                     {
-                        glrList* temp = gc->ShaderMap;
-                        gc->ShaderMap = (glrList*) calloc(sizeof(glrList), 1);
+                        pezList* temp = gc->ShaderMap;
+                        gc->ShaderMap = (pezList*) calloc(sizeof(pezList), 1);
                         gc->ShaderMap->Key = bstrcpy(shaderKey);
                         gc->ShaderMap->Next = temp;
                         gc->ShaderMap->Value = bformat("#line %d\n", lineNo);
@@ -3534,7 +3534,7 @@ const char* glrGetShader(const char* pEffectKey)
                     if (gc->TokenMap)
                     {
                         struct bstrList* tokens = bsplit(shaderKey, '.');
-                        glrList* pTokenMapping = gc->TokenMap;
+                        pezList* pTokenMapping = gc->TokenMap;
 
                         while (pTokenMapping)
                         {
@@ -3610,22 +3610,22 @@ const char* glrGetShader(const char* pEffectKey)
     return (const char*) closestMatch->Value->data;
 }
 
-const char* glrGetError()
+const char* pezGetError()
 {
-    glrContext* gc = __glr__Context;
+    pezContext* gc = __pez__Context;
 
     if (!gc)
     {
-        return "The glr API has not been initialized.";
+        return "The pez API has not been initialized.";
     }
 
     return (const char*) (gc->ErrorMessage ? gc->ErrorMessage->data : 0);
 }
 
-int glrAddDirective(const char* token, const char* directive)
+int pezAddDirective(const char* token, const char* directive)
 {
-    glrContext* gc = __glr__Context;
-    glrList* temp;
+    pezContext* gc = __pez__Context;
+    pezList* temp;
 
     if (!gc)
     {
@@ -3633,7 +3633,7 @@ int glrAddDirective(const char* token, const char* directive)
     }
 
     temp = gc->TokenMap;
-    gc->TokenMap = (glrList*) calloc(sizeof(glrList), 1);
+    gc->TokenMap = (pezList*) calloc(sizeof(pezList), 1);
     gc->TokenMap->Key = bfromcstr(token);
     gc->TokenMap->Value = bfromcstr(directive);
     gc->TokenMap->Next = temp;
@@ -4107,13 +4107,13 @@ int lzfx_getsize(const void* ibuf, unsigned int ilen, unsigned int *olen){
 
 #include <stdio.h>
 
-GlrPixels glrLoadPixels(const char* filename)
+PezPixels pezLoadPixels(const char* filename)
 {
     FILE* file = fopen(filename, "rb");
     unsigned int compressedSize, decompressedSize;
     unsigned char* compressed;
     unsigned int headerSize;
-    GlrPixels pixels;
+    PezPixels pixels;
 
     fseek(file, 0, SEEK_END);
     compressedSize = ftell(file);
@@ -4130,26 +4130,26 @@ GlrPixels glrLoadPixels(const char* filename)
     lzfx_decompress(compressed, compressedSize, pixels.RawHeader, &decompressedSize);
     free(compressed);
 
-    headerSize = sizeof(struct GlrPixelsRec);
+    headerSize = sizeof(struct PezPixelsRec);
     memcpy(&pixels, pixels.RawHeader, headerSize - 2 * sizeof(void*));
     pixels.Frames = (char*) pixels.RawHeader + headerSize;
 
     return pixels;
 }
 
-void glrFreePixels(GlrPixels pixels)
+void pezFreePixels(PezPixels pixels)
 {
     free(pixels.RawHeader);
 }
 
-void glrFreeVerts(GlrVerts verts)
+void pezFreeVerts(PezVerts verts)
 {
     free(verts.RawHeader);
 }
 
-void glrSavePixels(GlrPixels pixels, const char* filename)
+void pezSavePixels(PezPixels pixels, const char* filename)
 {
-    unsigned int headerSize = sizeof(struct GlrPixelsRec);
+    unsigned int headerSize = sizeof(struct PezPixelsRec);
     unsigned int contentSize = pixels.FrameCount * pixels.BytesPerFrame;
     unsigned int decompressedSize = headerSize + contentSize;
     unsigned char* decompressed;
@@ -4173,7 +4173,7 @@ void glrSavePixels(GlrPixels pixels, const char* filename)
     fclose(file);
 }
 
-GlrVerts glrLoadVerts(const char* filename)
+PezVerts pezLoadVerts(const char* filename)
 {
     FILE* file = fopen(filename, "rb");
     
@@ -4189,18 +4189,18 @@ GlrVerts glrLoadVerts(const char* filename)
     unsigned int decompressedSize = 0;
     lzfx_decompress(compressed, compressedSize, 0, &decompressedSize);
 
-    GlrVerts verts;
+    PezVerts verts;
     verts.RawHeader = (void*) malloc(decompressedSize);
     lzfx_decompress(compressed, compressedSize, verts.RawHeader, &decompressedSize);
     free(compressed);
 
-    unsigned int headerSize = sizeof(struct GlrVertsRec);
+    unsigned int headerSize = sizeof(struct PezVertsRec);
     memcpy(&verts, verts.RawHeader, headerSize - sizeof(void*));
 
-    unsigned int attribTableSize = sizeof(struct GlrAttribRec) * verts.AttribCount;
+    unsigned int attribTableSize = sizeof(struct PezAttribRec) * verts.AttribCount;
     unsigned int indexTableSize = verts.IndexBufferSize;
     
-    verts.Attribs = (GlrAttrib*) ((char*) verts.RawHeader + headerSize);
+    verts.Attribs = (PezAttrib*) ((char*) verts.RawHeader + headerSize);
     verts.Indices = (GLvoid*) ((char*) verts.RawHeader + headerSize + attribTableSize);
     
     char* f = (char*) verts.RawHeader + headerSize + attribTableSize + indexTableSize;
@@ -4218,10 +4218,10 @@ GlrVerts glrLoadVerts(const char* filename)
     return verts;
 }
 
-void glrSaveVerts(GlrVerts verts, const char* filename)
+void pezSaveVerts(PezVerts verts, const char* filename)
 {
-    unsigned int headerSize = sizeof(struct GlrVertsRec);
-    unsigned int attribTableSize = sizeof(struct GlrAttribRec) * verts.AttribCount;
+    unsigned int headerSize = sizeof(struct PezVertsRec);
+    unsigned int attribTableSize = sizeof(struct PezAttribRec) * verts.AttribCount;
     unsigned int indexTableSize = verts.IndexBufferSize;
 
     unsigned int stringTableSize = 0;
@@ -4245,10 +4245,10 @@ void glrSaveVerts(GlrVerts verts, const char* filename)
         frameTable += frameSize;
     }
 
-    unsigned char* stringTable = frameTable;
+    char* stringTable = (char*) frameTable;
     for (int attrib = 0; attrib < verts.AttribCount; attrib++) {
         const char* s = verts.Attribs[attrib].Name;
-        strcpy((char*) stringTable, s);
+        strcpy(stringTable, s);
         stringTable += strlen(s) + 1;
     }
 
@@ -4272,7 +4272,7 @@ HDC hDC;
 
 INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ignoreMe2)
 {
-    LPCSTR szName = " App";
+    LPCSTR szName = "Pez App";
     WNDCLASSEXA wc = { sizeof(WNDCLASSEX), CS_CLASSDC | CS_DBLCLKS, MsgProc, 0L, 0L, GetModuleHandle(0), 0, 0, 0, 0, szName, 0 };
     DWORD dwStyle = WS_SYSMENU | WS_VISIBLE | WS_POPUP;
     DWORD dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
@@ -4290,7 +4290,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     wc.hCursor = LoadCursor(0, IDC_ARROW);
     RegisterClassExA(&wc);
 
-    SetRect(&rect, 0, 0, GetConfig().Width, GetConfig().Height);
+    SetRect(&rect, 0, 0, PezGetConfig().Width, PezGetConfig().Height);
     AdjustWindowRectEx(&rect, dwStyle, FALSE, dwExStyle);
     windowWidth = rect.right - rect.left;
     windowHeight = rect.bottom - rect.top;
@@ -4316,7 +4316,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
     hRC = wglCreateContext(hDC);
     wglMakeCurrent(hDC, hRC);
 
-    if (GetConfig().Multisampling)
+    if (PezGetConfig().Multisampling)
     {
         int pixelAttribs[] =
         {
@@ -4344,7 +4344,7 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
 
         if (!wglChoosePixelFormatARB)
         {
-            glrFatal("Could not load function pointer for 'wglChoosePixelFormatARB'.  Is your driver properly installed?");
+            pezFatal("Could not load function pointer for 'wglChoosePixelFormatARB'.  Is your driver properly installed?");
         }
 
         // Try fewer and fewer samples per pixel till we find one that is supported:
@@ -4368,23 +4368,23 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
         wglMakeCurrent(hDC, hRC);
     }
 
-    #ifdef GLR_DROP_HANDLER
+    #ifdef PEZ_DROP_HANDLER
     DragAcceptFiles(hWnd, TRUE);
     #endif
 
     err = glewInit();
     if (GLEW_OK != err)
     {
-        glrFatal("GLEW Error: %s\n", glewGetErrorString(err));
+        pezFatal("GLEW Error: %s\n", glewGetErrorString(err));
     }
-    glrPrintString("OpenGL Version: %s\n", glGetString(GL_VERSION));
+    pezPrintString("OpenGL Version: %s\n", glGetString(GL_VERSION));
 
-    if (!GetConfig().VerticalSync)
+    if (!PezGetConfig().VerticalSync)
     {
         wglSwapIntervalEXT(0);
     }
 
-    if (GLR_FORWARD_COMPATIBLE_GL && glewIsSupported("GL_VERSION_3_2"))
+    if (PEZ_FORWARD_COMPATIBLE_GL && glewIsSupported("GL_VERSION_3_2"))
     {
         const int contextAttribs[] =
         {
@@ -4400,22 +4400,22 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
         hRC = newRC;
         wglMakeCurrent(hDC, hRC);
         
-        glrPrintString("Switched to a forward-compatible context.\n");
+        pezPrintString("Switched to a forward-compatible context.\n");
     }
 
-    glrInit();
-    glrAddPath("./", ".glsl");
-    glrAddPath("../", ".glsl");
+    pezInit();
+    pezAddPath("./", ".glsl");
+    pezAddPath("../", ".glsl");
 
     char qualifiedPath[128];
-    strcpy(qualifiedPath, glrResourcePath());
+    strcpy(qualifiedPath, pezResourcePath());
     strcat(qualifiedPath, "/");
-    glrAddPath(qualifiedPath, ".glsl");
+    pezAddPath(qualifiedPath, ".glsl");
 
-    glrAddDirective("*", "#version 150");
+    pezAddDirective("*", "#version 150");
 
-    Initialize();
-    SetWindowTextA(hWnd, GetConfig().Title);
+    PezInitialize();
+    SetWindowTextA(hWnd, PezGetConfig().Title);
 
     QueryPerformanceFrequency(&freqTime);
     QueryPerformanceCounter(&previousTime);
@@ -4441,10 +4441,10 @@ INT WINAPI WinMain(HINSTANCE hInst, HINSTANCE ignoreMe0, LPSTR ignoreMe1, INT ig
             deltaTime = elapsed * 1000000.0 / freqTime.QuadPart;
             previousTime = currentTime;
 
-            Update((float) deltaTime / 1000000.0f);
-            Render();
+            PezUpdate((float) deltaTime / 1000000.0f);
+            PezRender();
             SwapBuffers(hDC);
-            glrCheck(glGetError() == GL_NO_ERROR, "OpenGL error.\n");
+            pezCheck(glGetError() == GL_NO_ERROR, "OpenGL error.\n");
         }
     }
 
@@ -4461,7 +4461,7 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     int y = HIWORD(lParam);
     switch (msg)
     {
-        #ifdef GLR_DROP_HANDLER
+        #ifdef PEZ_DROP_HANDLER
         case WM_DROPFILES:
         {
             HDROP query = (HDROP) wParam;
@@ -4470,7 +4470,7 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
                 char file[512];
                 DragQueryFile( query, n, file, 512 );
-                ReceiveDrop(file);
+                PezReceiveDrop(file);
                 n++;
             }
             DragFinish( query );
@@ -4478,17 +4478,17 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
           break;
         #endif
 
-        #ifdef GLR_MOUSE_HANDLER
+        #ifdef PEZ_MOUSE_HANDLER
         case WM_LBUTTONDBLCLK:
-            HandleMouse(x, y, GLR_DOUBLECLICK);
+            PezHandleMouse(x, y, PEZ_DOUBLECLICK);
             break;
 
         case WM_LBUTTONUP:
-            HandleMouse(x, y, GLR_UP);
+            PezHandleMouse(x, y, PEZ_UP);
             break;
 
         case WM_LBUTTONDOWN:
-            HandleMouse(x, y, GLR_DOWN);
+            PezHandleMouse(x, y, PEZ_DOWN);
             break;
         #endif
 
@@ -4501,7 +4501,7 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         case WM_MOUSEMOVE:
         
-            #ifdef GLR_MOUSE_HANDLER
+            #ifdef PEZ_MOUSE_HANDLER
             if (wParam & MK_LBUTTON) {
                 PezHandleMouse(x, y, PEZ_MOVE);
                 SetCursor(LoadCursor(0, IDC_HAND));
@@ -4513,10 +4513,10 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             if (wParam & MK_MBUTTON) {
                 POINT cursorEnd = { x, y };
                 ClientToScreen(hWnd, &cursorEnd);
-                SHORT dx = cursorEnd.x - cursorBegin.x;
-                SHORT dy = cursorEnd.y - cursorBegin.y;
-                SHORT width = windowRectBegin.right - windowRectBegin.left;
-                SHORT height = windowRectBegin.bottom - windowRectBegin.top;
+                SHORT dx = (SHORT) (cursorEnd.x - cursorBegin.x);
+                SHORT dy = (SHORT) (cursorEnd.y - cursorBegin.y);
+                SHORT width = (SHORT) (windowRectBegin.right - windowRectBegin.left);
+                SHORT height = (SHORT) (windowRectBegin.bottom - windowRectBegin.top);
                 MoveWindow(hWnd, windowRectBegin.left + dx, windowRectBegin.top + dy, width, height, TRUE);
             }
             break;
@@ -4538,19 +4538,19 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-int glrIsPressing(char key)
+int pezIsPressing(char key)
 {
     return GetAsyncKeyState(key) & 0x0001;
 }
 
-const char* glrResourcePath()
+const char* pezResourcePath()
 {
     return "..";
 }
 
 #ifdef _MSC_VER
 
-void glrPrintString(const char* pStr, ...)
+void pezPrintString(const char* pStr, ...)
 {
     char msg[1024] = {0};
 
@@ -4561,7 +4561,7 @@ void glrPrintString(const char* pStr, ...)
     OutputDebugStringA(msg);
 }
 
-void _glrFatal(const char* pStr, va_list a)
+void _pezFatal(const char* pStr, va_list a)
 {
     char msg[1024] = {0};
     _vsnprintf_s(msg, _countof(msg), _TRUNCATE, pStr, a);
@@ -4571,14 +4571,14 @@ void _glrFatal(const char* pStr, va_list a)
     exit(1);
 }
 
-void glrFatal(const char* pStr, ...)
+void pezFatal(const char* pStr, ...)
 {
     va_list a;
     va_start(a, pStr);
-    _glrFatal(pStr, a);
+    _pezFatal(pStr, a);
 }
 
-void glrCheck(int condition, ...)
+void pezCheck(int condition, ...)
 {
     va_list a;
     const char* pStr;
@@ -4588,12 +4588,12 @@ void glrCheck(int condition, ...)
 
     va_start(a, condition);
     pStr = va_arg(a, const char*);
-    _glrFatal(pStr, a);
+    _pezFatal(pStr, a);
 }
 
 #else
 
-void glrPrintString(const char* pStr, ...)
+void pezPrintString(const char* pStr, ...)
 {
     va_list a;
     va_start(a, pStr);
@@ -4603,7 +4603,7 @@ void glrPrintString(const char* pStr, ...)
     fputs(msg, stderr);
 }
 
-void _glrFatal(const char* pStr, va_list a)
+void _pezFatal(const char* pStr, va_list a)
 {
     char msg[1024] = {0};
     vsnprintf(msg, countof(msg), pStr, a);
@@ -4612,14 +4612,13 @@ void _glrFatal(const char* pStr, va_list a)
     exit(1);
 }
 
-void glrFatal(const char* pStr, ...)
+void pezFatal(const char* pStr, ...)
 {
     va_list a;
     va_start(a, pStr);
-    _glrFatal(pStr, a);
+    _pezFatal(pStr, a);
 }
-
-void glrCheck(int condition, ...)
+void pezCheck(int condition, ...)
 {
     va_list a;
     const char* pStr;
@@ -4629,12 +4628,12 @@ void glrCheck(int condition, ...)
 
     va_start(a, condition);
     pStr = va_arg(a, const char*);
-    _glrFatal(pStr, a);
+    _pezFatal(pStr, a);
 }
 
 #endif
 
-const char* glrGetDesktopFolder()
+const char* pezGetDesktopFolder()
 {
     HKEY hKey;
     static char lszValue[255];
@@ -4645,12 +4644,12 @@ const char* glrGetDesktopFolder()
     return lszValue;
 }
 
-void glrSwapBuffers()
+void pezSwapBuffers()
 {
     SwapBuffers(hDC);
 }
 
-const char* glrOpenFileDialog()
+const char* pezOpenFileDialog()
 {
     static TCHAR szFile[MAX_PATH] = TEXT("\0");
     OPENFILENAME ofn;
@@ -4673,11 +4672,11 @@ const char* glrOpenFileDialog()
     return 0;
 }
 #else
-//  was developed by Philip Rideout and released under the MIT License.
+// Pez was developed by Philip Rideout and released under the MIT License.
 
-#include <sys/time.h>
-//#include <glxew.h>
+#include "pez.h"
 #include "glew.h"
+#include <sys/time.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -4700,7 +4699,7 @@ unsigned int GetMicroseconds()
 int main(int argc, char** argv)
 {
     int attrib[] = {
-        GLX_SAMPLES, 16,
+        GLX_SAMPLES, 4,
         GLX_RENDER_TYPE, GLX_RGBA_BIT,
         GLX_DRAWABLE_TYPE, GLX_WINDOW_BIT,
         GLX_DOUBLEBUFFER, True,
@@ -4712,9 +4711,9 @@ int main(int argc, char** argv)
         GLX_SAMPLE_BUFFERS, 1,
         None
     };
-
-    attrib[1] = GetConfig().Multisampling ? 4 : 1;
     
+    attrib[1] = PezGetConfig().Multisampling ? 4 : 1;
+ 
     PlatformContext context;
 
     context.MainDisplay = XOpenDisplay(NULL);
@@ -4725,12 +4724,12 @@ int main(int argc, char** argv)
     PFNGLXCHOOSEFBCONFIGPROC glXChooseFBConfig = (PFNGLXCHOOSEFBCONFIGPROC)glXGetProcAddress((GLubyte*)"glXChooseFBConfig");
     GLXFBConfig *fbc = glXChooseFBConfig(context.MainDisplay, screen, attrib, &fbcount);
     if (!fbc)
-        glrFatal("Failed to retrieve a framebuffer config\n");;
+        pezFatal("Failed to retrieve a framebuffer config\n");;
 
     PFNGLXGETVISUALFROMFBCONFIGPROC glXGetVisualFromFBConfig = (PFNGLXGETVISUALFROMFBCONFIGPROC)glXGetProcAddress((GLubyte*)"glXGetVisualFromFBConfig");
     XVisualInfo *visinfo = glXGetVisualFromFBConfig(context.MainDisplay, fbc[0]);
     if (!visinfo)
-        glrFatal("Error: couldn't create OpenGL window with this pixel format.\n");
+        pezFatal("Error: couldn't create OpenGL window with this pixel format.\n");
 
     XSetWindowAttributes attr;
     attr.background_pixel = 0;
@@ -4743,7 +4742,7 @@ int main(int argc, char** argv)
         context.MainDisplay,
         root,
         0, 0,
-        GetConfig().Width, GetConfig().Height, 0,
+        PezGetConfig().Width, PezGetConfig().Height, 0,
         visinfo->depth,
         InputOutput,
         visinfo->visual,
@@ -4752,18 +4751,18 @@ int main(int argc, char** argv)
     );
     XMapWindow(context.MainDisplay, context.MainWindow);
 
-    GLXContext glcontext = 0;
-    if (GLR_FORWARD_COMPATIBLE_GL) {
+    GLXContext glcontext;
+    if (0 && PEZ_FORWARD_COMPATIBLE_GL) {
         GLXContext tempContext = glXCreateContext(context.MainDisplay, visinfo, NULL, True);
         PFNGLXCREATECONTEXTATTRIBSARBPROC glXCreateContextAttribs = (PFNGLXCREATECONTEXTATTRIBSARBPROC)glXGetProcAddress((GLubyte*)"glXCreateContextAttribsARB");
         if (!glXCreateContextAttribs) {
-            glrFatal("Your platform does not support OpenGL 4.0.\n"
-                          "Try changing GLR_FORWARD_COMPATIBLE_GL to 0.\n");
+            pezFatal("Your platform does not support OpenGL 4.0.\n"
+                          "Try changing PEZ_FORWARD_COMPATIBLE_GL to 0.\n");
         }
         int fbcount = 0;
         GLXFBConfig *framebufferConfig = glXChooseFBConfig(context.MainDisplay, screen, 0, &fbcount);
         if (!framebufferConfig) {
-            glrFatal("Can't create a framebuffer for OpenGL 4.0.\n");
+            pezFatal("Can't create a framebuffer for OpenGL 4.0.\n");
         } else {
             int attribs[] = {
                 GLX_CONTEXT_MAJOR_VERSION_ARB, 4,
@@ -4783,7 +4782,7 @@ int main(int argc, char** argv)
     
     GLenum err = glewInit();
     if (GLEW_OK != err)
-        glrFatal("GLEW Error: %s\n", glewGetErrorString(err));
+        pezFatal("GLEW Error: %s\n", glewGetErrorString(err));
 
     // Work around some GLEW issues:    
     #define glewGetProcAddress(name) (*glXGetProcAddressARB)(name)
@@ -4796,21 +4795,22 @@ int main(int argc, char** argv)
     // Reset OpenGL error state:
     glGetError();
 
-    glrInit();
-    glrAddPath("./", ".glsl");
-    glrAddPath("../", ".glsl");
+    pezInit();
+    pezAddPath("./", ".glsl");
+    pezAddPath("../", ".glsl");
 
     char qualifiedPath[128];
-    strcpy(qualifiedPath, glrResourcePath());
+    strcpy(qualifiedPath, pezResourcePath());
     strcat(qualifiedPath, "/");
-    glrAddPath(qualifiedPath, ".glsl");
+    pezAddPath(qualifiedPath, ".glsl");
 
-    glrAddDirective("*", "#version 150");
+    pezAddDirective("*", "#version 150");
 
-    glrPrintString("OpenGL Version: %s\n", glGetString(GL_VERSION));
+    pezPrintString("OpenGL Version: %s\n", glGetString(GL_VERSION));
     
-    Initialize();
-    XStoreName(context.MainDisplay, context.MainWindow, GetConfig().Title);
+    PezInitialize();
+    XStoreName(context.MainDisplay, context.MainWindow, PezGetConfig().Title);
+   
     
     // -------------------
     // Start the Game Loop
@@ -4821,7 +4821,7 @@ int main(int argc, char** argv)
     while (!done) {
         
         if (glGetError() != GL_NO_ERROR)
-            glrFatal("OpenGL error.\n");
+            pezFatal("OpenGL error.\n");
 
         if (XPending(context.MainDisplay)) {
             XEvent event;
@@ -4837,17 +4837,17 @@ int main(int argc, char** argv)
                     //resize(event.xconfigure.width, event.xconfigure.height);
                     break;
                 
-#ifdef GLR_MOUSE_HANDLER
+#ifdef PEZ_MOUSE_HANDLER
                 case ButtonPress:
-                    HandleMouse(event.xbutton.x, event.xbutton.y, GLR_DOWN);
+                    PezHandleMouse(event.xbutton.x, event.xbutton.y, PEZ_DOWN);
                     break;
 
                 case ButtonRelease:
-                    HandleMouse(event.xbutton.x, event.xbutton.y, GLR_UP);
+                    PezHandleMouse(event.xbutton.x, event.xbutton.y, PEZ_UP);
                     break;
 
                 case MotionNotify:
-                    HandleMouse(event.xmotion.x, event.xmotion.y, GLR_MOVE);
+                    PezHandleMouse(event.xmotion.x, event.xmotion.y, PEZ_MOVE);
                     break;
 #endif
 
@@ -4873,16 +4873,26 @@ int main(int argc, char** argv)
         unsigned int deltaTime = currentTime - previousTime;
         previousTime = currentTime;
         
-        Update((float) deltaTime / 1000000.0f);
+        PezUpdate((float) deltaTime / 1000000.0f);
 
-        Render(0);
+        PezRender(0);
         glXSwapBuffers(context.MainDisplay, context.MainWindow);
     }
 
     return 0;
 }
 
-void glrPrintString(const char* pStr, ...)
+void pezPrintStringW(const wchar_t* pStr, ...)
+{
+    va_list a;
+    va_start(a, pStr);
+
+    wchar_t msg[1024] = {0};
+    vswprintf(msg, countof(msg), pStr, a);
+    fputws(msg, stderr);
+}
+
+void pezPrintString(const char* pStr, ...)
 {
     va_list a;
     va_start(a, pStr);
@@ -4892,7 +4902,20 @@ void glrPrintString(const char* pStr, ...)
     fputs(msg, stderr);
 }
 
-void _glrFatal(const char* pStr, va_list a)
+void pezFatalW(const wchar_t* pStr, ...)
+{
+    fwide(stderr, 1);
+
+    va_list a;
+    va_start(a, pStr);
+
+    wchar_t msg[1024] = {0};
+    vswprintf(msg, countof(msg), pStr, a);
+    fputws(msg, stderr);
+    exit(1);
+}
+
+void _pezFatal(const char* pStr, va_list a)
 {
     char msg[1024] = {0};
     vsnprintf(msg, countof(msg), pStr, a);
@@ -4900,14 +4923,13 @@ void _glrFatal(const char* pStr, va_list a)
     exit(1);
 }
 
-void glrFatal(const char* pStr, ...)
+void pezFatal(const char* pStr, ...)
 {
     va_list a;
     va_start(a, pStr);
-    _glrFatal(pStr, a);
+    _pezFatal(pStr, a);
 }
-
-void glrCheck(int condition, ...)
+void pezCheck(int condition, ...)
 {
     va_list a;
     const char* pStr;
@@ -4917,15 +4939,15 @@ void glrCheck(int condition, ...)
 
     va_start(a, condition);
     pStr = va_arg(a, const char*);
-    _glrFatal(pStr, a);
+    _pezFatal(pStr, a);
 }
 
-int glrIsPressing(char key)
+int pezIsPressing(char key)
 {
     return 0;
 }
 
-const char* glrResourcePath()
+const char* pezResourcePath()
 {
     return ".";
 }
