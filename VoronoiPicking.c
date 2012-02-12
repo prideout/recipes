@@ -118,7 +118,7 @@ void PezRender()
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
     glUniform1i(u("Nailboard"), GL_TRUE);
     glUniform2f(u("SpriteSize"), 1.0f, aspect);
-    glDrawArrays(GL_POINTS, 0, 2); // VertexCount
+    glDrawArrays(GL_POINTS, 0, Globals.VertexCount);
 
     if (Globals.Mouse.z < 0) {
         return;
@@ -242,7 +242,7 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    Globals.VertexCount = slices * stacks * 3;
+    Globals.VertexCount = slices * stacks;
     int vertexStride = sizeof(float) * 3;
     GLsizeiptr size = Globals.VertexCount * vertexStride;
     GLfloat* positions = (GLfloat*) malloc(size);
