@@ -165,11 +165,7 @@ void main()
         FragColor.b = (b == 0) ? 1.0 : 0.0;
 
         float L = distance(gl_FragCoord.xy, gCenterCoord);
-        FragColor.rgb = vec3(L, L, L) / 5.0;
-        //gl_FragDepth = L;
-
-        //FragColor.b = 0;
-        //FragColor.rg = gl_FragCoord.xy / ViewportSize;
-        //FragColor.rg = gCenterCoord / ViewportSize;
+        FragColor.rgb *= 1 - L / 80;
+        gl_FragDepth = L / 80;
     }
 }
