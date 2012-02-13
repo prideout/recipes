@@ -4608,6 +4608,7 @@ void _pezFatal(const char* pStr, va_list a)
     char msg[1024] = {0};
     vsnprintf(msg, countof(msg), pStr, a);
     fputs(msg, stderr);
+    fputc('\n', stderr);
     //__builtin_trap();
     exit(1);
 }
@@ -4952,6 +4953,7 @@ void _pezFatal(const char* pStr, va_list a)
     char msg[1024] = {0};
     vsnprintf(msg, countof(msg), pStr, a);
     fputs(msg, stderr);
+    fputc('\n', stderr);
     exit(1);
 }
 

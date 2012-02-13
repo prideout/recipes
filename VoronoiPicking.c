@@ -1,3 +1,7 @@
+// Voronoi Picking OpenGL Demo by Philip Rideout
+// Licensed under the Creative Commons Attribution 3.0 Unported License. 
+// http://creativecommons.org/licenses/by/3.0/
+
 #include <stdlib.h>
 #include "pez.h"
 #include "vmath.h"
@@ -18,6 +22,7 @@ struct {
     GLuint SpriteProgram;
     GLuint TorusVao;
     GLuint SinglePointVao;
+    GLuint OffscreenFbo, ColorTexture, IdTexture;
 } Globals;
 
 static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
@@ -25,6 +30,7 @@ static GLuint CurrentProgram();
 static GLuint CreateSinglePoint();
 static void ModifySinglePoint(GLuint vao, Vector3 v);
 static GLuint CreateTorus(float major, float minor, int slices, int stacks);
+static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
@@ -64,7 +70,8 @@ void PezInitialize()
     const float MajorRadius = 8.0f, MinorRadius = 2.0f;
     const int Slices = 40, Stacks = 10;
     Globals.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
-    
+    Globals.OffscreenFbo = CreateRenderTarget(&Globals.ColorTexture, &Globals.IdTexture);
+
     Globals.Theta = 0;
     Globals.Mouse.z = -1;
 
@@ -305,4 +312,43 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
 
     free(indices);
     return vao;
+}
+
+static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture)
+{
+    PezConfig cfg = PezGetConfig();
+
+    glGenTextures(1, colorTexture);
+    glBindTexture(GL_TEXTURE_2D, *colorTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cfg.Width, cfg.Height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create color texture.");
+
+    glGenTextures(1, idTexture);
+    glBindTexture(GL_TEXTURE_2D, *idTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, cfg.Width, cfg.Height, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, 0);
+    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create id texture.");
+
+    GLuint fboHandle;
+    glGenFramebuffers(1, &fboHandle);
+    glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *colorTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, *idTexture, 0);
+
+    GLuint depthBuffer;
+    glGenRenderbuffers(1, &depthBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, cfg.Width, cfg.Height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
+
+    pezCheck(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Invalid FBO.");
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    return fboHandle;
 }

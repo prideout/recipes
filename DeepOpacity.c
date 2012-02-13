@@ -1,3 +1,7 @@
+// Deep Opacity OpenGL Demo by Philip Rideout
+// Licensed under the Creative Commons Attribution 3.0 Unported License. 
+// http://creativecommons.org/licenses/by/3.0/
+
 #include "pez.h"
 #include "vmath.h"
 
