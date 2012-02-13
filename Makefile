@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-std=c99 -Wall -c -Wc++-compat -O3
 LIBS=-lX11 -lGL
-DEMOS=ClipPlanes DeepOpacity Raycast
+DEMOS=ClipPlanes DeepOpacity Raycast VoronoiPicking DistanceField FresnelGlass
 SHARED=glew.o pez.o
 
 run: VoronoiPicking
