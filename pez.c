@@ -1572,7 +1572,14 @@ int main(int argc, char** argv)
     // Reset OpenGL error state:
     glGetError();
 
-    pezInit(PezGetConfig().Title);
+    // Lop off the trailing .c
+    bstring title = bfromcstr(PezGetConfig().Title);
+    bstring trimmed = bmidstr(title, 0, blength(title) - 1);
+    printf("prideout %s\n", bdata(trimmed));
+    pezInit(bdata(trimmed));
+    bdestroy(title);
+    bdestroy(trimmed);
+
     pezAddPath("./", ".glsl");
     pezAddPath("../", ".glsl");
 

@@ -27,7 +27,7 @@ static GLuint CurrentProgram();
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "demo-ClipPlanes.";
+    config.Title = __FILE__;
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 1;
