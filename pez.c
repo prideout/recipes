@@ -1517,23 +1517,23 @@ int main(int argc, char** argv)
         visinfo->depth,
         InputOutput,
         visinfo->visual,
-        CWBackPixel | CWBorderPixel | CWColormap | CWEventMask,
+        CWBackPixel | /*CWBorderPixel |*/ CWColormap | CWEventMask,
         &attr
     );
 
     int borderless = 1;
     if (borderless) {
         Atom mwmHintsProperty = XInternAtom(context.MainDisplay, "_MOTIF_WM_HINTS", 0);
-        MwmHints hints;
+        MwmHints hints = {0};
         hints.flags = MWM_HINTS_DECORATIONS;
         hints.decorations = 0;
         XChangeProperty(context.MainDisplay, context.MainWindow, mwmHintsProperty, mwmHintsProperty, 32,
-                        PropModeReplace, (unsigned char *)&hints, 5);
+                        PropModeReplace, (unsigned char *)&hints, PROP_MWM_HINTS_ELEMENTS);
     }
 
     XMapWindow(context.MainDisplay, context.MainWindow);
 
-    int centerWindow = 0;
+    int centerWindow = 1;
     if (centerWindow) {
         Screen* pScreen = XScreenOfDisplay(context.MainDisplay, screenIndex);
         int left = XWidthOfScreen(pScreen)/2 - PezGetConfig().Width/2;
