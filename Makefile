@@ -3,23 +3,24 @@ CFLAGS=-std=c99 -Wall -c -Wc++-compat -O3
 LIBS=-lX11 -lGL
 DEMOS=ClipPlanes DeepOpacity Raycast VoronoiPicking DistanceField FresnelGlass
 SHARED=glew.o pez.o bstrlib.o
+PREFIX=demo-
 
 run: VoronoiPicking
 	./VoronoiPicking
 
 all: $(DEMOS)
 
-VoronoiPicking: VoronoiPicking.o VoronoiPicking.glsl $(SHARED)
-	$(CC) $@.o $(SHARED) -o $@ $(LIBS)
+VoronoiPicking: $(PREFIX)VoronoiPicking.o $(PREFIX)VoronoiPicking.glsl $(SHARED)
+	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
 
-ClipPlanes: ClipPlanes.o ClipPlanes.glsl $(SHARED)
-	$(CC) $@.o $(SHARED) -o $@ $(LIBS)
+ClipPlanes: $(PREFIX)ClipPlanes.o $(PREFIX)ClipPlanes.glsl $(SHARED)
+	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
 
-DeepOpacity: DeepOpacity.o DeepOpacity.glsl $(SHARED) Smoke96.pbo
-	$(CC) $@.o $(SHARED) -o $@ $(LIBS)
+DeepOpacity: $(PREFIX)DeepOpacity.o $(PREFIX)DeepOpacity.glsl $(SHARED) Smoke96.pbo
+	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
 
-Raycast: Raycast.o Raycast.glsl $(SHARED) Smoke96.pbo
-	$(CC) $@.o $(SHARED) -o $@ $(LIBS)
+Raycast: $(PREFIX)Raycast.o $(PREFIX)Raycast.glsl $(SHARED) Smoke96.pbo
+	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@

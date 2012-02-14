@@ -1,4 +1,4 @@
-// Raycast OpenGL Demo by Philip Rideout
+// Deep Opacity OpenGL Demo by Philip Rideout
 // Licensed under the Creative Commons Attribution 3.0 Unported License. 
 // http://creativecommons.org/licenses/by/3.0/
 
@@ -10,11 +10,12 @@ static Point3 LightPosition = {1, 1, 2};
 static const float FieldOfView = 0.7f;
 static const int GridSize = 96;
 static const int ViewSamples = 96 * 2;
+static const int LightSamples = 96;
 
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "Raycast.";
+    config.Title = "demo-DeepOpacity.";
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 0;
@@ -48,6 +49,7 @@ struct VbosRec {
 
 struct ProgramsRec {
     GLuint Raycast;
+    GLuint Light;
 } Programs;
 
 static GLuint LoadProgram(char* vs, char* gs, char* fs);
@@ -59,9 +61,8 @@ static GLuint CurrentProgram();
 
 void PezInitialize()
 {
-    PezGetConfig();
-
     Programs.Raycast = LoadProgram("VS", "GS", "FS");
+    Programs.Light = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Light.Cache");
 
     GLuint vao;
     glGenVertexArrays(1, &vao);
@@ -102,6 +103,20 @@ void PezRender()
     GLfloat* mv = &Matrices.Modelview.col0.x;
     GLfloat* proj = &Matrices.Projection.col0.x;
 
+    // Generate the light cache:
+    glDisable(GL_BLEND);
+    glBindFramebuffer(GL_FRAMEBUFFER, Volumes.LightCache.FboHandle);
+    glViewport(0, 0, Volumes.LightCache.Width, Volumes.LightCache.Height);
+    glBindBuffer(GL_ARRAY_BUFFER, Vbos.FullscreenQuad);
+    glVertexAttribPointer(0, 2, GL_SHORT, GL_FALSE, 2 * sizeof(short), 0);
+    glBindTexture(GL_TEXTURE_3D, Volumes.Density.TextureHandle);
+    glUseProgram(Programs.Light);
+    glUniform3fv(u("LightPosition"), 1, &LightPosition.x);
+    glUniform1f(u("LightStep"), sqrtf(2.0f) / LightSamples);
+    glUniform1i(u("LightSamples"), LightSamples);
+    glUniform1f(u("InverseSize"), 1.0f / GridSize);
+    glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, GridSize);
+
     // Perform raycasting:
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, cfg.Width, cfg.Height);
@@ -120,8 +135,8 @@ void PezRender()
     glUniformMatrix4fv(u("ProjectionMatrix"), 1, 0, proj);
     glUniform1i(u("ViewSamples"), ViewSamples);
     glUniform3fv(u("EyePosition"), 1, &EyePosition.x);
-    glUniform3fv(u("LightPosition"), 1, &LightPosition.x);
     glUniform1i(u("Density"), 0);
+    glUniform1i(u("LightCache"), 1);
     glUniform3fv(u("RayOrigin"), 1, &rayOrigin.x);
     glUniform1f(u("FocalLength"), 1.0f / tanf(FieldOfView / 2));
     glUniform2f(u("WindowSize"), (float) cfg.Width, (float) cfg.Height);
@@ -139,12 +154,12 @@ void PezUpdate(float dt)
     
     Vector3 up = {1, 0, 0}; Point3 target = {0, 0, 0};
     Matrix4 view = M4MakeLookAt(EyePosition, target, up);
-    Matrix4 spin = M4MakeRotationX(sin(theta) * Pi / 2);
+    Matrix4 spin = M4MakeRotationX(sin(theta / 4) * Pi / 2);
     Matrix4 model = M4Mul(spin, M4MakeRotationY(0.75));
     Matrices.Modelview = M4Mul(view, model);
     
     Point3 p = {1, 1, 2};
-    LightPosition = T3MulP3(T3MakeRotationY(theta / 2), p);
+    LightPosition = T3MulP3(T3MakeRotationY(2 * theta), p);
 
     PezConfig cfg = PezGetConfig();
     float aspectRatio = (float) cfg.Width / cfg.Height;

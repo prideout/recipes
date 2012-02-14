@@ -1,3 +1,7 @@
+// Clip Planes OpenGL Demo by Philip Rideout
+// Licensed under the Creative Commons Attribution 3.0 Unported License. 
+// http://creativecommons.org/licenses/by/3.0/
+
 #include <stdlib.h>
 #include "pez.h"
 #include "vmath.h"
@@ -23,7 +27,7 @@ static GLuint CurrentProgram();
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "ClipPlanes.";
+    config.Title = "demo-ClipPlanes.";
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 1;

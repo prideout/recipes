@@ -42,7 +42,7 @@ static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int d
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "VoronoiPicking.";
+    config.Title = "demo-VoronoiPicking.";
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 1;
