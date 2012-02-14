@@ -15,7 +15,7 @@ static const int LightSamples = 96;
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "DeepOpacity";
+    config.Title = "DeepOpacity.";
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 0;
@@ -61,8 +61,8 @@ static GLuint CurrentProgram();
 
 void PezInitialize()
 {
-    Programs.Raycast = LoadProgram("DeepOpacity.VS", "DeepOpacity.GS", "DeepOpacity.FS");
-    Programs.Light = LoadProgram("DeepOpacity.Fluid.Vertex", "DeepOpacity.Fluid.PickLayer", "DeepOpacity.Light.Cache");
+    Programs.Raycast = LoadProgram("VS", "GS", "FS");
+    Programs.Light = LoadProgram("Fluid.Vertex", "Fluid.PickLayer", "Light.Cache");
 
     GLuint vao;
     glGenVertexArrays(1, &vao);

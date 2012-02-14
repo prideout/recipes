@@ -19,7 +19,9 @@ struct {
     GLfloat PackedNormalMatrix[9];
     Vector3 Mouse;
     GLuint LitProgram;
+    GLuint QuadProgram;
     GLuint SpriteProgram;
+    GLuint QuadVao;
     GLuint TorusVao;
     GLuint SinglePointVao;
     GLuint OffscreenFbo, ColorTexture, IdTexture;
@@ -31,14 +33,16 @@ static GLuint CreateSinglePoint();
 static void ModifySinglePoint(GLuint vao, Vector3 v);
 static GLuint CreateTorus(float major, float minor, int slices, int stacks);
 static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture);
+static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
+#define offset(x) ((const GLvoid*)x)
 
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "VoronoiPicking";
+    config.Title = "VoronoiPicking.";
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 1;
@@ -48,33 +52,33 @@ PezConfig PezGetConfig()
 
 void PezInitialize()
 {
-    Globals.SpriteProgram = LoadProgram("VoronoiPicking.VS",
-                                        "VoronoiPicking.Sprite.GS",
-                                        "VoronoiPicking.Sprite.FS");
-
-    Globals.LitProgram = LoadProgram("VoronoiPicking.VS",
-                                     "VoronoiPicking.Lit.GS",
-                                     "VoronoiPicking.Lit.FS");
-
-    PezConfig cfg = PezGetConfig();
-    const float h = 5.0f;
-    const float w = h * cfg.Width / cfg.Height;
-    Globals.Projection = M4MakeFrustum(-w, w,   // left & right planes
-                                       -h, h,   // bottom & top planes
-                                       65, 90); // near & far planes
-
-    Globals.OrthoMatrix = M4MakeOrthographic(0, cfg.Width, cfg.Height, 0, 0, 1);
-    
-    Globals.SinglePointVao = CreateSinglePoint();
-
     const float MajorRadius = 8.0f, MinorRadius = 2.0f;
     const int Slices = 40, Stacks = 10;
+    const float ViewHeight = 5.0f;
+    const float ViewNear = 65, ViewFar = 90;
+    const PezConfig cfg = PezGetConfig();
+
+    // Compile shaders
+    Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
+    Globals.SpriteProgram = LoadProgram("VS", "Sprite.GS", "Sprite.FS");
+    Globals.LitProgram = LoadProgram("VS", "Lit.GS", "Lit.FS");
+
+    // Set up viewport
+    const float w = ViewHeight * cfg.Width / cfg.Height;
+    Globals.Projection = M4MakeFrustum(-w, w,
+                                       -ViewHeight, ViewHeight,
+                                       ViewNear, ViewFar);
+    Globals.OrthoMatrix = M4MakeOrthographic(0, cfg.Width, cfg.Height, 0, 0, 1);
+
+    // Create geometry
+    Globals.SinglePointVao = CreateSinglePoint();
+    Globals.QuadVao = CreateQuad(cfg.Width, cfg.Height, cfg.Width, cfg.Height);
     Globals.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
     Globals.OffscreenFbo = CreateRenderTarget(&Globals.ColorTexture, &Globals.IdTexture);
 
+    // Misc Initialization
     Globals.Theta = 0;
     Globals.Mouse.z = -1;
-
     glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
 }
 
@@ -193,15 +197,17 @@ static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKe
     pezCheck(compileSuccess, "Can't compile vshader:\n%s", spew);
     glAttachShader(programHandle, vsHandle);
 
-    const char* gsSource = pezGetShader(gsKey);
-    pezCheck(gsSource != 0, "Can't find gshader: %s\n", gsKey);
-    GLuint gsHandle = glCreateShader(GL_GEOMETRY_SHADER);
-    glShaderSource(gsHandle, 1, &gsSource, 0);
-    glCompileShader(gsHandle);
-    glGetShaderiv(gsHandle, GL_COMPILE_STATUS, &compileSuccess);
-    glGetShaderInfoLog(gsHandle, sizeof(spew), 0, spew);
-    pezCheck(compileSuccess, "Can't compile gshader:\n%s", spew);
-    glAttachShader(programHandle, gsHandle);
+    if (gsKey) {
+        const char* gsSource = pezGetShader(gsKey);
+        pezCheck(gsSource != 0, "Can't find gshader: %s\n", gsKey);
+        GLuint gsHandle = glCreateShader(GL_GEOMETRY_SHADER);
+        glShaderSource(gsHandle, 1, &gsSource, 0);
+        glCompileShader(gsHandle);
+        glGetShaderiv(gsHandle, GL_COMPILE_STATUS, &compileSuccess);
+        glGetShaderInfoLog(gsHandle, sizeof(spew), 0, spew);
+        pezCheck(compileSuccess, "Can't compile gshader:\n%s", spew);
+        glAttachShader(programHandle, gsHandle);
+    }
 
     const char* fsSource = pezGetShader(fsKey);
     pezCheck(fsSource != 0, "Can't find fshader: %s\n", fsKey);
@@ -351,4 +357,51 @@ static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture)
     pezCheck(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Invalid FBO.");
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     return fboHandle;
+}
+
+static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight)
+{
+    // Stretch to fit:
+    float q[] = {
+        -1, -1, 0, 1,
+        +1, -1, 1, 1,
+        -1, +1, 0, 0,
+        +1, +1, 1, 0 };
+        
+    if (sourceHeight < 0) {
+        sourceHeight = -sourceHeight;
+        q[3] = 1-q[3];
+        q[7] = 1-q[7];
+        q[11] = 1-q[11];
+        q[15] = 1-q[15];
+    }
+
+    float sourceRatio = (float) sourceWidth / sourceHeight;
+    float destRatio = (float) destWidth  / destHeight;
+    
+    // Horizontal fit:
+    if (sourceRatio > destRatio) {
+        q[1] = q[5] = -destRatio / sourceRatio;
+        q[9] = q[13] = destRatio / sourceRatio;
+
+    // Vertical fit:    
+    } else {
+        q[0] = q[8] = -sourceRatio / destRatio;
+        q[4] = q[12] = sourceRatio / destRatio;
+    }
+
+    GLuint vbo, vao;
+    
+    glUseProgram(Globals.QuadProgram);
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(q), q, GL_STATIC_DRAW);
+    glVertexAttribPointer(a("Position"), 2, GL_FLOAT, GL_FALSE, 16, 0);
+    glVertexAttribPointer(a("TexCoord"), 2, GL_FLOAT, GL_FALSE, 16, offset(8));
+    glEnableVertexAttribArray(a("Position"));
+    glEnableVertexAttribArray(a("TexCoord"));
+    
+    return vao;
 }

@@ -14,7 +14,7 @@ static const int ViewSamples = 96 * 2;
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "Raycast";
+    config.Title = "Raycast.";
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 0;
@@ -61,7 +61,7 @@ void PezInitialize()
 {
     PezGetConfig();
 
-    Programs.Raycast = LoadProgram("Raycast.VS", "Raycast.GS", "Raycast.FS");
+    Programs.Raycast = LoadProgram("VS", "GS", "FS");
 
     GLuint vao;
     glGenVertexArrays(1, &vao);

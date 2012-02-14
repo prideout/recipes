@@ -23,7 +23,7 @@ static GLuint CurrentProgram();
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "ClipPlanes";
+    config.Title = "ClipPlanes.";
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 1;
@@ -92,7 +92,7 @@ static void CreateTorus(float major, float minor, int slices, int stacks)
 
 void PezInitialize()
 {
-    LoadProgram("ClipPlanes.VS", "ClipPlanes.GS", "ClipPlanes.FS");
+    LoadProgram("VS", "GS", "FS");
 
     PezConfig cfg = PezGetConfig();
     const float h = 5.0f;

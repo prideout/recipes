@@ -54,7 +54,8 @@ const char* pezResourcePath();
 const char* pezOpenFileDialog();
 const char* pezGetDesktopFolder();
 
-int pezInit();
+// How about pezSwInit etc?
+int pezInit(const char* keyPrefix);
 int pezShutdown();
 int pezAddPath(const char* pathPrefix, const char* pathSuffix);
 const char* pezGetShader(const char* effectKey);

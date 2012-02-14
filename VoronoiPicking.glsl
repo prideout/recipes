@@ -1,3 +1,26 @@
+-- Quad.VS
+
+in vec2 Position;
+in vec2 TexCoord;
+out vec2 vTexCoord;
+
+void main()
+{
+    vTexCoord = TexCoord;
+    gl_Position = vec4(Position, 0, 1);
+}
+
+-- Quad.FS
+
+in vec2 vTexCoord;
+out vec4 FragColor;
+uniform sampler2D Sampler;
+
+void main()
+{
+    FragColor = texture(Sampler, vTexCoord);
+}
+
 -- VS
 
 in vec4 Position;
