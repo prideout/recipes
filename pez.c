@@ -1427,6 +1427,7 @@ const char* pezOpenFileDialog()
 #include <stdarg.h>
 #include <signal.h>
 #include <wchar.h>
+#include <Xm/MwmUtil.h>
 
 typedef struct PlatformContextRec
 {
@@ -1458,12 +1459,12 @@ int main(int argc, char** argv)
     PlatformContext context;
 
     context.MainDisplay = XOpenDisplay(NULL);
-    int screen = DefaultScreen(context.MainDisplay);
-    Window root = RootWindow(context.MainDisplay, screen);
+    int screenIndex = DefaultScreen(context.MainDisplay);
+    Window root = RootWindow(context.MainDisplay, screenIndex);
 
     int fbcount;
     PFNGLXCHOOSEFBCONFIGPROC glXChooseFBConfig = (PFNGLXCHOOSEFBCONFIGPROC)glXGetProcAddress((GLubyte*)"glXChooseFBConfig");
-    GLXFBConfig *fbc = glXChooseFBConfig(context.MainDisplay, screen, attrib, &fbcount);
+    GLXFBConfig *fbc = glXChooseFBConfig(context.MainDisplay, screenIndex, attrib, &fbcount);
     if (!fbc)
         pezFatal("Failed to retrieve a framebuffer config\n");
 
@@ -1519,7 +1520,26 @@ int main(int argc, char** argv)
         CWBackPixel | CWBorderPixel | CWColormap | CWEventMask,
         &attr
     );
+
+    int borderless = 1;
+    if (borderless) {
+        Atom mwmHintsProperty = XInternAtom(context.MainDisplay, "_MOTIF_WM_HINTS", 0);
+        MwmHints hints;
+        hints.flags = MWM_HINTS_DECORATIONS;
+        hints.decorations = 0;
+        XChangeProperty(context.MainDisplay, context.MainWindow, mwmHintsProperty, mwmHintsProperty, 32,
+                        PropModeReplace, (unsigned char *)&hints, 5);
+    }
+
     XMapWindow(context.MainDisplay, context.MainWindow);
+
+    int centerWindow = 0;
+    if (centerWindow) {
+        Screen* pScreen = XScreenOfDisplay(context.MainDisplay, screenIndex);
+        int left = XWidthOfScreen(pScreen)/2 - PezGetConfig().Width/2;
+        int top = XHeightOfScreen(pScreen)/2 - PezGetConfig().Height/2;
+        XMoveWindow(context.MainDisplay, context.MainWindow, left, top);
+    }
 
     PFNGLXSWAPINTERVALSGIPROC glXSwapIntervalSGI = (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddress((GLubyte*)"glXSwapIntervalSGI");
     if (glXSwapIntervalSGI) {
@@ -1537,7 +1557,7 @@ int main(int argc, char** argv)
                           "Try changing PEZ_FORWARD_COMPATIBLE_GL to 0.\n");
         }
         int fbcount = 0;
-        GLXFBConfig *framebufferConfig = glXChooseFBConfig(context.MainDisplay, screen, 0, &fbcount);
+        GLXFBConfig *framebufferConfig = glXChooseFBConfig(context.MainDisplay, screenIndex, 0, &fbcount);
         if (!framebufferConfig) {
             pezFatal("Can't create a framebuffer for OpenGL 4.0.\n");
         } else {
