@@ -2,7 +2,7 @@ CC=gcc
 CFLAGS=-std=c99 -Wall -c -Wc++-compat -O3
 LIBS=-lX11 -lGL
 DEMOS=ClipPlanes DeepOpacity Raycast VoronoiPicking DistanceField FresnelGlass
-SHARED=glew.o pez.o bstrlib.o
+SHARED=glew.o pez.o bstrlib.o pez.linux.o
 PREFIX=demo-
 
 run: VoronoiPicking
