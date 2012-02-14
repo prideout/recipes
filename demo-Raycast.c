@@ -14,7 +14,7 @@ static const int ViewSamples = 96 * 2;
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "demo-Raycast.";
+    config.Title = __FILE__;
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 0;

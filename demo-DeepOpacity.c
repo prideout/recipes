@@ -15,7 +15,7 @@ static const int LightSamples = 96;
 PezConfig PezGetConfig()
 {
     PezConfig config;
-    config.Title = "demo-DeepOpacity.";
+    config.Title = __FILE__;
     config.Width = 853;
     config.Height = 480;
     config.Multisampling = 0;

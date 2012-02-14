@@ -1573,12 +1573,10 @@ int main(int argc, char** argv)
     glGetError();
 
     // Lop off the trailing .c
-    bstring title = bfromcstr(PezGetConfig().Title);
-    bstring trimmed = bmidstr(title, 0, blength(title) - 1);
-    printf("prideout %s\n", bdata(trimmed));
-    pezInit(bdata(trimmed));
-    bdestroy(title);
-    bdestroy(trimmed);
+    bstring name = bfromcstr(PezGetConfig().Title);
+    bstring shaderPrefix = bmidstr(name, 0, blength(name) - 1);
+    pezInit(bdata(shaderPrefix));
+    bdestroy(shaderPrefix);
 
     pezAddPath("./", ".glsl");
     pezAddPath("../", ".glsl");
@@ -1593,8 +1591,10 @@ int main(int argc, char** argv)
     pezPrintString("OpenGL Version: %s\n", glGetString(GL_VERSION));
     
     PezInitialize();
-    XStoreName(context.MainDisplay, context.MainWindow, PezGetConfig().Title);
-   
+    bstring windowTitle = bmidstr(name, 5, blength(name) - 7);
+    XStoreName(context.MainDisplay, context.MainWindow, bdata(windowTitle));
+    bdestroy(windowTitle);
+    bdestroy(name);
     
     // -------------------
     // Start the Game Loop
