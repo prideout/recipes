@@ -101,7 +101,7 @@ static bstring __pez__LoadEffectContents(pezContext* gc, bstring effectName)
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS
 
-int pezInit(const char* keyPrefix)
+int pezSwInit(const char* keyPrefix)
 {
     if (__pez__Context)
     {
@@ -113,12 +113,12 @@ int pezInit(const char* keyPrefix)
     __pez__Context = (pezContext*) calloc(sizeof(pezContext), 1);
     __pez__Context->KeyPrefix = bfromcstr(keyPrefix);
     
-    pezAddPath("", "");
+    pezSwAddPath("", "");
 
     return 1;
 }
 
-int pezShutdown()
+int pezSwShutdown()
 {
     pezContext* gc = __pez__Context;
 
@@ -141,7 +141,7 @@ int pezShutdown()
     return 1;
 }
 
-int pezAddPath(const char* pathPrefix, const char* pathSuffix)
+int pezSwAddPath(const char* pathPrefix, const char* pathSuffix)
 {
     pezContext* gc = __pez__Context;
     pezList* temp;
@@ -344,7 +344,7 @@ const char* pezGetShader(const char* pEffectKey)
     return (const char*) closestMatch->Value->data;
 }
 
-const char* pezGetError()
+const char* pezSwGetError()
 {
     pezContext* gc = __pez__Context;
 
@@ -356,7 +356,7 @@ const char* pezGetError()
     return (const char*) (gc->ErrorMessage ? gc->ErrorMessage->data : 0);
 }
 
-int pezAddDirective(const char* token, const char* directive)
+int pezSwAddDirective(const char* token, const char* directive)
 {
     pezContext* gc = __pez__Context;
     pezList* temp;

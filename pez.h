@@ -53,15 +53,7 @@ int pezIsPressing(char key);
 const char* pezResourcePath();
 const char* pezOpenFileDialog();
 const char* pezGetDesktopFolder();
-
-// How about pezSwInit etc?
-int pezInit(const char* keyPrefix);
-int pezShutdown();
-int pezAddPath(const char* pathPrefix, const char* pathSuffix);
 const char* pezGetShader(const char* effectKey);
-const char* pezGetError();
-int pezAddDirective(const char* token, const char* directive);
-
 
 typedef struct PezAttribRec {
     const GLchar* Name;
@@ -107,6 +99,14 @@ void pezFreePixels(PezPixels pixels);
 void pezSavePixels(PezPixels pixels, const char* filename);
 void pezRenderText(PezPixels pixels, const char* message);
 PezPixels pezGenNoise(PezPixels desc, float alpha, float beta, int n);
+
+// For internal use, to support pezGetShader:
+int pezSwInit(const char* keyPrefix);
+int pezSwShutdown();
+int pezSwAddPath(const char* pathPrefix, const char* pathSuffix);
+const char* pezSwGetError();
+int pezSwAddDirective(const char* token, const char* directive);
+
 #ifdef __cplusplus
 }
 #endif

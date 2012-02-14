@@ -177,21 +177,20 @@ int main(int argc, char** argv)
     // Lop off the trailing .c
     bstring name = bfromcstr(PezGetConfig().Title);
     bstring shaderPrefix = bmidstr(name, 0, blength(name) - 1);
-    pezInit(bdata(shaderPrefix));
+    pezSwInit(bdata(shaderPrefix));
     bdestroy(shaderPrefix);
 
-    pezAddPath("./", ".glsl");
-    pezAddPath("../", ".glsl");
-
+    // Set up the Shader Wrangler
+    pezSwAddPath("./", ".glsl");
+    pezSwAddPath("../", ".glsl");
     char qualifiedPath[128];
     strcpy(qualifiedPath, pezResourcePath());
     strcat(qualifiedPath, "/");
-    pezAddPath(qualifiedPath, ".glsl");
+    pezSwAddPath(qualifiedPath, ".glsl");
+    pezSwAddDirective("*", "#version 150");
 
-    pezAddDirective("*", "#version 150");
-
+    // Perform user-specified intialization
     pezPrintString("OpenGL Version: %s\n", glGetString(GL_VERSION));
-    
     PezInitialize();
     bstring windowTitle = bmidstr(name, 5, blength(name) - 7);
     XStoreName(context.MainDisplay, context.MainWindow, bdata(windowTitle));
@@ -264,6 +263,8 @@ int main(int argc, char** argv)
         PezRender(0);
         glXSwapBuffers(context.MainDisplay, context.MainWindow);
     }
+
+    pezSwShutdown();
 
     return 0;
 }
