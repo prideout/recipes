@@ -3,26 +3,25 @@
 // http://creativecommons.org/licenses/by/3.0/
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include "pez.h"
 #include "vmath.h"
 
 struct {
-    int IndexCount;
     int VertexCount;
+    bool IsDragging;
     float Theta;
     Matrix4 Projection;
     Matrix4 OrthoMatrix;
     Matrix4 Modelview;
     Matrix4 ViewMatrix;
     Matrix4 ModelMatrix;
-    Matrix3 NormalMatrix;
-    GLfloat PackedNormalMatrix[9];
     Vector3 Mouse;
-    GLuint LitProgram;
+    GLuint PointProgram;
     GLuint QuadProgram;
     GLuint SpriteProgram;
     GLuint QuadVao;
-    GLuint TorusVao;
+    GLuint CloudVao;
     GLuint SinglePointVao;
     GLuint OffscreenFbo, ColorTexture, IdTexture;
 } Globals;
@@ -31,7 +30,7 @@ static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKe
 static GLuint CurrentProgram();
 static GLuint CreateSinglePoint();
 static void ModifySinglePoint(GLuint vao, Vector3 v);
-static GLuint CreateTorus(float major, float minor, int slices, int stacks);
+static GLuint CreatePointCloud(float radius, int count);
 static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture);
 static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
 
@@ -52,8 +51,6 @@ PezConfig PezGetConfig()
 
 void PezInitialize()
 {
-    const float MajorRadius = 8.0f, MinorRadius = 2.0f;
-    const int Slices = 40, Stacks = 10;
     const float ViewHeight = 5.0f;
     const float ViewNear = 65, ViewFar = 90;
     const PezConfig cfg = PezGetConfig();
@@ -61,7 +58,7 @@ void PezInitialize()
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Globals.SpriteProgram = LoadProgram("VS", "Sprite.GS", "Sprite.FS");
-    Globals.LitProgram = LoadProgram("VS", "Lit.GS", "Lit.FS");
+    Globals.PointProgram = LoadProgram("VS", 0, "Point.FS");
 
     // Set up viewport
     const float w = ViewHeight * cfg.Width / cfg.Height;
@@ -73,13 +70,15 @@ void PezInitialize()
     // Create geometry
     Globals.SinglePointVao = CreateSinglePoint();
     Globals.QuadVao = CreateQuad(cfg.Width, cfg.Height, cfg.Width, cfg.Height);
-    Globals.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
+    Globals.CloudVao = CreatePointCloud(5.0f, 400);
     Globals.OffscreenFbo = CreateRenderTarget(&Globals.ColorTexture, &Globals.IdTexture);
 
     // Misc Initialization
+    Globals.IsDragging = false;
     Globals.Theta = 0;
     Globals.Mouse.z = -1;
     glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void PezUpdate(float seconds)
@@ -88,15 +87,12 @@ void PezUpdate(float seconds)
     Globals.Theta += seconds * RadiansPerSecond;
     
     // Create the model-view matrix:
-    Globals.ModelMatrix = M4MakeRotationX(Globals.Theta);
+    Globals.ModelMatrix = M4MakeRotationZ(Globals.Theta);
     Point3 eye = P3MakeFromElems(0, -75, 25);
     Point3 target = P3MakeFromElems(0, 0, 0);
     Vector3 up = V3MakeFromElems(0, 1, 0);
     Globals.ViewMatrix = M4MakeLookAt(eye, target, up);
     Globals.Modelview = M4Mul(Globals.ViewMatrix, Globals.ModelMatrix);
-    Globals.NormalMatrix = M4GetUpper3x3(Globals.Modelview);
-    for (int i = 0; i < 9; ++i)
-        Globals.PackedNormalMatrix[i] = M3GetElem(Globals.NormalMatrix, i/3, i%3);
 }
 
 void PezRender()
@@ -105,45 +101,44 @@ void PezRender()
     float* pView = (float*) &Globals.ViewMatrix;
     float* pModelview = (float*) &Globals.Modelview;
     float* pProjection = (float*) &Globals.Projection;
-    float* pNormalMatrix = &Globals.PackedNormalMatrix[0];
 
-    glUseProgram(Globals.LitProgram);
-    glBindVertexArray(Globals.TorusVao);
+    glUseProgram(Globals.PointProgram);
+    glBindVertexArray(Globals.CloudVao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
     glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
-    glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
-    glDrawElements(GL_TRIANGLES, Globals.IndexCount, GL_UNSIGNED_SHORT, 0);
+    glDrawArrays(GL_POINTS, 0, Globals.VertexCount);
 
     const float w = PezGetConfig().Width;
     const float h = PezGetConfig().Height;
     const float s = 64;
 
     glClear(GL_DEPTH_BUFFER_BIT);
-    glUseProgram(Globals.SpriteProgram);
-    glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
-    glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
-    glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
-    glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
-    glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
-    glUniform1i(u("Nailboard"), GL_TRUE);
-    glUniform2f(u("SpriteSize"), s, s);
-    glUniform2f(u("HalfViewport"), w / 2.0f, h / 2.0f);
-    glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
-
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glDrawArrays(GL_POINTS, 0, Globals.VertexCount);
-    glDisable(GL_BLEND);
+    
+    if (Globals.IsDragging) {
+        glUseProgram(Globals.SpriteProgram);
+        glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
+        glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
+        glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
+        glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
+        glUniform1i(u("Nailboard"), GL_TRUE);
+        glUniform2f(u("SpriteSize"), s, s);
+        glUniform2f(u("HalfViewport"), w / 2.0f, h / 2.0f);
+        glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
+        glEnable(GL_BLEND);
+        glDrawArrays(GL_POINTS, 0, Globals.VertexCount);
+        glDisable(GL_BLEND);
+    }
 
     if (Globals.Mouse.z < 0) {
         return;
     }
 
     glUseProgram(Globals.SpriteProgram);
+
     float x = Globals.Mouse.x;
     float y = Globals.Mouse.y;
     float z = 0;
@@ -161,6 +156,8 @@ void PezRender()
     glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
     glUniform1i(u("Nailboard"), GL_FALSE);
     glUniform2f(u("SpriteSize"), 32, 32);
+    glUniform2f(u("HalfViewport"), w / 2.0f, h / 2.0f);
+    glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glDrawArrays(GL_POINTS, 0, 1);
@@ -172,6 +169,12 @@ void PezHandleMouse(int x, int y, int action)
     Globals.Mouse.x = x;
     Globals.Mouse.y = y;
     Globals.Mouse.z = action;
+
+    if (action == PEZ_DOWN) {
+        Globals.IsDragging = true;
+    } else if (action == PEZ_UP) {
+        Globals.IsDragging = false;
+    }
 }
 
 static GLuint CurrentProgram()
@@ -260,27 +263,29 @@ static void ModifySinglePoint(GLuint vao, Vector3 v)
     glBufferData(GL_ARRAY_BUFFER, size, &v.x, GL_STATIC_DRAW);
 }
 
-static GLuint CreateTorus(float major, float minor, int slices, int stacks)
+static GLuint CreatePointCloud(float r, int pointCount)
 {
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    Globals.VertexCount = slices * stacks;
+    Globals.VertexCount = pointCount;
     int vertexStride = sizeof(float) * 3;
     GLsizeiptr size = Globals.VertexCount * vertexStride;
     GLfloat* positions = (GLfloat*) malloc(size);
 
     GLfloat* position = positions;
-    for (int slice = 0; slice < slices; slice++) {
-        float theta = slice * 2.0f * Pi / slices;
-        for (int stack = 0; stack < stacks; stack++) {
-            float phi = stack * 2.0f * Pi / stacks;
-            float beta = major + minor * cos(phi);
-            *position++ = cos(theta) * beta;
-            *position++ = sin(theta) * beta;
-            *position++ = sin(phi) * minor;
+    for (int slice = 0; slice < pointCount; slice++) {
+        float x = r - 2 * r * rand() / RAND_MAX;
+        float y = r - 2 * r * rand() / RAND_MAX;
+        float z = r - 2 * r * rand() / RAND_MAX;
+        if (x*x+y*y+z*z > r*r) {
+            slice--;
+            continue;
         }
+        *position++ = x;
+        *position++ = y;
+        *position++ = z;
     }
 
     GLuint handle;
@@ -292,31 +297,6 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
                           vertexStride, 0);
 
     free(positions);
-
-    Globals.IndexCount = slices * stacks * 6;
-    size = Globals.IndexCount * sizeof(GLushort);
-    GLushort* indices = (GLushort*) malloc(size);
-    GLushort* index = indices;
-    int v = 0;
-    for (int i = 0; i < slices - 1; i++) {
-        for (int j = 0; j < stacks; j++) {
-            int next = (j + 1) % stacks;
-            *index++ = v+next+stacks; *index++ = v+next; *index++ = v+j;
-            *index++ = v+j; *index++ = v+j+stacks; *index++ = v+next+stacks;
-        }
-        v += stacks;
-    }
-    for (int j = 0; j < stacks; j++) {
-        int next = (j + 1) % stacks;
-        *index++ = next; *index++ = v+next; *index++ = v+j;
-        *index++ = v+j; *index++ = j; *index++ = next;
-    }
-
-    glGenBuffers(1, &handle);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices, GL_STATIC_DRAW);
-
-    free(indices);
     return vao;
 }
 
