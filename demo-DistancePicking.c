@@ -86,7 +86,10 @@ void PezInitialize()
     // Create geometry
     Globals.SinglePointVao = CreateSinglePoint();
     Globals.QuadVao = CreateQuad(cfg.Width, cfg.Height, cfg.Width, cfg.Height);
+
+    glUseProgram(Globals.LitProgram);
     Globals.TrefoilKnot = CreateTrefoil();
+
     Globals.OffscreenFbo = CreateRenderTarget(&Globals.ColorTexture, &Globals.IdTexture);
 
     // Misc Initialization
@@ -129,31 +132,30 @@ void PezRender()
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
-    //glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
+    glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
 
-    const float w = PezGetConfig().Width;
-    const float h = PezGetConfig().Height;
-    //const float s = 64;
-
-    glClear(GL_DEPTH_BUFFER_BIT);
-    
+    // Leave early if we don't have a valid mouse position yet
     if (Globals.Mouse.z < 0) {
         return;
     }
 
     glUseProgram(Globals.SpriteProgram);
 
-    float x = Globals.Mouse.x;
-    float y = Globals.Mouse.y;
-    float z = 0;
-    Vector3 p = {x, y, z};
-    ModifySinglePoint(Globals.SinglePointVao, p);
+    // Update the teeny VBO for the mouse cursor
+    if (1) {
+        float x = Globals.Mouse.x;
+        float y = Globals.Mouse.y;
+        float z = 0;
+        Vector3 p = {x, y, z};
+        ModifySinglePoint(Globals.SinglePointVao, p);
+    }
 
     Matrix4 i = M4MakeIdentity();
     float* pIdentity = (float*) &i;
     float* pOrtho = (float*) &Globals.Transforms.Ortho;
+    const float w = PezGetConfig().Width;
+    const float h = PezGetConfig().Height;
 
-    glBindVertexArray(Globals.SinglePointVao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("Modelview"), 1, 0, pIdentity);
@@ -165,6 +167,7 @@ void PezRender()
     glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
+    glBindVertexArray(Globals.SinglePointVao);
     glDrawArrays(GL_POINTS, 0, 1);
     glDisable(GL_BLEND);
 }
@@ -270,6 +273,7 @@ static void ModifySinglePoint(GLuint vao, Vector3 v)
 
 static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture)
 {
+    pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
     PezConfig cfg = PezGetConfig();
 
     glGenTextures(1, colorTexture);
@@ -390,48 +394,80 @@ static MeshPod CreateTrefoil()
     const int VertexCount = Slices * Stacks;
     const int IndexCount = VertexCount * 6;
 
-    Vertex verts[VertexCount];
-    Vertex* pVert = &verts[0];
+    MeshPod mesh;
+    glGenVertexArrays(1, &mesh.Vao);
+    glBindVertexArray(mesh.Vao);
 
-    float ds = 1.0f / Slices;
-    float dt = 1.0f / Stacks;
+    // Create a buffer with interleaved positions and normals
+    if (1) {
+        Vertex verts[VertexCount];
+        Vertex* pVert = &verts[0];
+        float ds = 1.0f / Slices;
+        float dt = 1.0f / Stacks;
 
-    // The upper bounds in these loops are tweaked to reduce the
-    // chance of precision error causing an incorrect # of iterations.
-
-    for (float s = 0; s < 1 - ds / 2; s += ds) {
-        for (float t = 0; t < 1 - dt / 2; t += dt) {
-            const float E = 0.01f;
-            Vector3 p = EvaluateTrefoil(s, t);
-            Vector3 u = V3Sub(EvaluateTrefoil(s + E, t), p);
-            Vector3 v = V3Sub(EvaluateTrefoil(s, t + E), p);
-            Vector3 n = V3Normalize(V3Cross(u, v));
-            pVert->Position = p;
-            pVert->Normal = n;
-            ++pVert;
+        // The upper bounds in these loops are tweaked to reduce the
+        // chance of precision error causing an incorrect # of iterations.
+        for (float s = 0; s < 1 - ds / 2; s += ds) {
+            for (float t = 0; t < 1 - dt / 2; t += dt) {
+                const float E = 0.01f;
+                Vector3 p = EvaluateTrefoil(s, t);
+                Vector3 u = V3Sub(EvaluateTrefoil(s + E, t), p);
+                Vector3 v = V3Sub(EvaluateTrefoil(s, t + E), p);
+                Vector3 n = V3Normalize(V3Cross(u, v));
+                pVert->Position = p;
+                pVert->Normal = n;
+                ++pVert;
+            }
         }
+
+        pezCheck(pVert - &verts[0] == VertexCount, "Tessellation error.");
+
+        GLuint vbo;
+        GLsizeiptr size = sizeof(verts);
+        const GLvoid* data = &verts[0].Position.x;
+        GLenum usage = GL_STATIC_DRAW;
+        glGenBuffers(1, &vbo);
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glBufferData(GL_ARRAY_BUFFER, size, data, usage);
     }
 
-    pezCheck(pVert - &verts[0] == VertexCount, "Tessellation error.");
+    // Create a buffer of 16-bit indices
+    if (1) {
+        GLushort inds[IndexCount];
+        GLushort* pIndex = &inds[0];
+        GLushort n = 0;
+        for (GLushort i = 0; i < Slices; i++) {
+            for (GLushort j = 0; j < Stacks; j++) {
+                *pIndex++ = n + j;
+                *pIndex++ = n + (j + 1) % Stacks;
+                *pIndex++ = (n + j + Stacks) % VertexCount;
+                
+                *pIndex++ = (n + j + Stacks) % VertexCount;
+                *pIndex++ = (n + (j + 1) % Stacks) % VertexCount;
+                *pIndex++ = (n + (j + 1) % Stacks + Stacks) % VertexCount;
+            }
+            n += Stacks;
+        }
 
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
+        pezCheck(n == VertexCount, "Tessellation error.");
+        pezCheck(pIndex - &inds[0] == IndexCount, "Tessellation error.");
 
-    GLuint vbo;
-    GLsizeiptr size = sizeof(verts);
-    const GLvoid* data = &verts[0].Position.x;
-    GLenum usage = GL_STATIC_DRAW;
+        GLuint handle;
+        GLsizeiptr size = sizeof(inds);
+        const GLvoid* data = &inds[0];
+        GLenum usage = GL_STATIC_DRAW;
+        glGenBuffers(1, &handle);
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, data, usage);
+    }
 
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, size, data, usage);
-
-    // TODO create IndexBuffer...
-
-    MeshPod mesh;
     mesh.VertexCount = VertexCount;
     mesh.IndexCount = IndexCount;
-    mesh.Vao = vao;
+
+    glVertexAttribPointer(a("Position"), 3, GL_FLOAT, GL_FALSE, 12, 0);
+    glVertexAttribPointer(a("Normal"), 3, GL_FLOAT, GL_FALSE, 12, offset(12));
+    glEnableVertexAttribArray(a("Position"));
+    glEnableVertexAttribArray(a("Normal"));
+
     return mesh;
 }
