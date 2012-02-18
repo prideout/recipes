@@ -7,6 +7,7 @@ DEMOS=\
 	Raycast \
 	VoronoiPicking \
 	DistancePicking \
+	ToonShading \
 
 SHARED=glew.o pez.o bstrlib.o pez.linux.o
 PREFIX=demo-
@@ -29,6 +30,9 @@ Raycast: $(PREFIX)Raycast.o $(PREFIX)Raycast.glsl $(SHARED) Smoke96.pbo
 	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
 
 DistancePicking: $(PREFIX)DistancePicking.o $(PREFIX)DistancePicking.glsl $(SHARED)
+	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
+
+ToonShading: $(PREFIX)ToonShading.o $(PREFIX)ToonShading.glsl $(SHARED)
 	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
 
 .c.o:

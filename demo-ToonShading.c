@@ -1,4 +1,4 @@
-// Distance Picking OpenGL Demo by Philip Rideout
+// Toon Shading OpenGL Demo by Philip Rideout
 // Licensed under the Creative Commons Attribution 3.0 Unported License. 
 // http://creativecommons.org/licenses/by/3.0/
 
@@ -24,15 +24,9 @@ typedef struct {
 } TransformsPod;
 
 struct {
-    bool IsDragging;
     float Theta;
-    Vector3 Mouse;
     GLuint LitProgram;
-    GLuint QuadProgram;
-    GLuint SpriteProgram;
-    GLuint QuadVao;
     GLuint SinglePointVao;
-    GLuint OffscreenFbo, ColorTexture, IdTexture;
     MeshPod TrefoilKnot;
     TransformsPod Transforms;
 } Globals;
@@ -44,11 +38,7 @@ typedef struct {
 
 static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
 static GLuint CurrentProgram();
-static GLuint CreateSinglePoint();
-static void ModifySinglePoint(GLuint vao, Vector3 v);
 static MeshPod CreateTrefoil();
-static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture);
-static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
@@ -67,18 +57,12 @@ PezConfig PezGetConfig()
 
 void PezInitialize()
 {
-    //    const float ViewHeight = 5.0f;
-    //    const float ViewNear = 65, ViewFar = 90;
     const PezConfig cfg = PezGetConfig();
 
     // Compile shaders
-    Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
-    Globals.SpriteProgram = LoadProgram("VS", "Sprite.GS", "Sprite.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
 
     // Set up viewport
-    //    const float w = ViewHeight * cfg.Width / cfg.Height;
-
     float fovy = 16 * TwoPi / 180;
     float aspect = (float) cfg.Width / cfg.Height;
     float zNear = 0.1, zFar = 300;
@@ -86,20 +70,12 @@ void PezInitialize()
     Globals.Transforms.Ortho = M4MakeOrthographic(0, cfg.Width, cfg.Height, 0, 0, 1);
 
     // Create geometry
-    Globals.SinglePointVao = CreateSinglePoint();
-    Globals.QuadVao = CreateQuad(cfg.Width, cfg.Height, cfg.Width, cfg.Height);
-
     glUseProgram(Globals.LitProgram);
     Globals.TrefoilKnot = CreateTrefoil();
 
-    Globals.OffscreenFbo = CreateRenderTarget(&Globals.ColorTexture, &Globals.IdTexture);
-
     // Misc Initialization
-    Globals.IsDragging = false;
     Globals.Theta = 0;
-    Globals.Mouse.z = -1;
     glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void PezUpdate(float seconds)
@@ -138,56 +114,10 @@ void PezRender()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
-
-    // Leave early if we don't have a valid mouse position yet
-    if (Globals.Mouse.z < 0) {
-        return;
-    }
-
-    glUseProgram(Globals.SpriteProgram);
-
-    // Update the teeny VBO for the mouse cursor
-    if (1) {
-        float x = Globals.Mouse.x;
-        float y = Globals.Mouse.y;
-        float z = 0;
-        Vector3 p = {x, y, z};
-        ModifySinglePoint(Globals.SinglePointVao, p);
-    }
-
-    Matrix4 i = M4MakeIdentity();
-    float* pIdentity = (float*) &i;
-    float* pOrtho = (float*) &Globals.Transforms.Ortho;
-    const float w = PezGetConfig().Width;
-    const float h = PezGetConfig().Height;
-
-    glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pIdentity);
-    glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pIdentity);
-    glUniformMatrix4fv(u("Modelview"), 1, 0, pIdentity);
-    glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
-    glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
-    glUniform1i(u("Nailboard"), GL_FALSE);
-    glUniform2f(u("SpriteSize"), 32, 32);
-    glUniform2f(u("HalfViewport"), w / 2.0f, h / 2.0f);
-    glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBindVertexArray(Globals.SinglePointVao);
-    glDrawArrays(GL_POINTS, 0, 1);
-    glDisable(GL_BLEND);
 }
 
 void PezHandleMouse(int x, int y, int action)
 {
-    Globals.Mouse.x = x;
-    Globals.Mouse.y = y;
-    Globals.Mouse.z = action;
-
-    if (action == PEZ_DOWN) {
-        Globals.IsDragging = true;
-    } else if (action == PEZ_UP) {
-        Globals.IsDragging = false;
-    }
 }
 
 static GLuint CurrentProgram()
@@ -242,125 +172,6 @@ static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKe
     pezCheck(linkSuccess, "Can't link shaders:\n%s", spew);
     glUseProgram(programHandle);
     return programHandle;
-}
-
-static GLuint CreateSinglePoint()
-{
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    Vector3 v = V3MakeFromScalar(0);
-    GLsizeiptr size = sizeof(v);
-
-    GLuint handle;
-    glGenBuffers(1, &handle);
-    glBindBuffer(GL_ARRAY_BUFFER, handle);
-    glBufferData(GL_ARRAY_BUFFER, size, &v.x, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(a("Position"));
-    glVertexAttribPointer(a("Position"), 3, GL_FLOAT, GL_FALSE,
-                          size, 0);
-
-    return vao;
-}
-
-static void ModifySinglePoint(GLuint vao, Vector3 v)
-{
-    glBindVertexArray(vao);
-
-    GLuint handle;
-    glGetVertexAttribiv(a("Position"), GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, (GLint*) &handle);
-    glBindBuffer(GL_ARRAY_BUFFER, handle);
-
-    GLsizeiptr size = sizeof(v);
-    glBufferData(GL_ARRAY_BUFFER, size, &v.x, GL_STATIC_DRAW);
-}
-
-static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture)
-{
-    pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
-    PezConfig cfg = PezGetConfig();
-
-    glGenTextures(1, colorTexture);
-    glBindTexture(GL_TEXTURE_2D, *colorTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cfg.Width, cfg.Height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create color texture.");
-
-    glGenTextures(1, idTexture);
-    glBindTexture(GL_TEXTURE_2D, *idTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, cfg.Width, cfg.Height, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, 0);
-    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create id texture.");
-
-    GLuint fboHandle;
-    glGenFramebuffers(1, &fboHandle);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *colorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, *idTexture, 0);
-
-    GLuint depthBuffer;
-    glGenRenderbuffers(1, &depthBuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, cfg.Width, cfg.Height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
-
-    pezCheck(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Invalid FBO.");
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    return fboHandle;
-}
-
-static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight)
-{
-    // Stretch to fit:
-    float q[] = {
-        -1, -1, 0, 1,
-        +1, -1, 1, 1,
-        -1, +1, 0, 0,
-        +1, +1, 1, 0 };
-        
-    if (sourceHeight < 0) {
-        sourceHeight = -sourceHeight;
-        q[3] = 1-q[3];
-        q[7] = 1-q[7];
-        q[11] = 1-q[11];
-        q[15] = 1-q[15];
-    }
-
-    float sourceRatio = (float) sourceWidth / sourceHeight;
-    float destRatio = (float) destWidth  / destHeight;
-    
-    // Horizontal fit:
-    if (sourceRatio > destRatio) {
-        q[1] = q[5] = -destRatio / sourceRatio;
-        q[9] = q[13] = destRatio / sourceRatio;
-
-    // Vertical fit:    
-    } else {
-        q[0] = q[8] = -sourceRatio / destRatio;
-        q[4] = q[12] = sourceRatio / destRatio;
-    }
-
-    GLuint vbo, vao;
-    
-    glUseProgram(Globals.QuadProgram);
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(q), q, GL_STATIC_DRAW);
-    glVertexAttribPointer(a("Position"), 2, GL_FLOAT, GL_FALSE, 16, 0);
-    glVertexAttribPointer(a("TexCoord"), 2, GL_FLOAT, GL_FALSE, 16, offset(8));
-    glEnableVertexAttribArray(a("Position"));
-    glEnableVertexAttribArray(a("TexCoord"));
-    
-    return vao;
 }
 
 static Vector3 EvaluateTrefoil(float s, float t)
