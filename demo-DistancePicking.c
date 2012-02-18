@@ -197,17 +197,13 @@ void PezRender()
             break;
         }
     }
-
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // Draw the backbuffer
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDrawBuffer(GL_BACK);
-
     glUseProgram(Globals.QuadProgram);
     glBindVertexArray(Globals.QuadVao);
-
     if (Globals.IsDragging) {
         glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
         glUniform1f(u("Scale"), 1.0f / PezGetConfig().Width);
