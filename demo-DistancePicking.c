@@ -148,9 +148,16 @@ void PezRender()
     glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glClear(GL_DEPTH_BUFFER_BIT);
+    float initColor[4] = { 0, 0, 0, 0 };
+    float initDistance[4] = { 0, 0, 999.0f, 0 };
+    glClearBufferfv(GL_COLOR, 0, initColor);
+    glClearBufferfv(GL_COLOR, 1, initDistance);
+
     glEnable(GL_DEPTH_TEST);
     glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
+    glDisable(GL_DEPTH_TEST);
 
     // Perform erosion; first horizontal, than vertical:
     glUseProgram(Globals.ErodeProgram);
@@ -168,6 +175,7 @@ void PezRender()
 
         // Copy the entire source image to the destination surface:
         glUseProgram(Globals.QuadProgram);
+        glUniform1f(u("Scale"), 1.0f);
         DrawBuffers("FragColor", Globals.DistanceAttachments[0], 0, 0);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -176,7 +184,7 @@ void PezRender()
         DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
         glUniform1f(u("Beta"), (GLfloat) pass * 2 + 1);
         glBeginQuery(GL_SAMPLES_PASSED, Globals.QueryObject);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glEndQuery(GL_SAMPLES_PASSED);
 
         // Measure how many pixels actually got updated:

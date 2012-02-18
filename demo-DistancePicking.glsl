@@ -113,7 +113,6 @@ uniform vec3 SpecularMaterial = vec3(0.5, 0.5, 0.5);
 uniform vec3 FrontMaterial = vec3(0.75, 0.75, 0.5);
 uniform vec3 BackMaterial = vec3(0.5, 0.5, 0.75);
 uniform float Shininess = 50;
-uniform float Big = 99999.0;
 
 void main()
 {
@@ -194,8 +193,6 @@ in vec2 gCenterCoord;
 uniform bool Nailboard;
 uniform vec2 SpriteSize;
 
-uniform float Big = 99999.0;
-
 vec3 colorFromIndex(int i)
 {
     int r = i & 1;
@@ -236,5 +233,5 @@ void main()
         }
     }
 
-    DistanceMap = vec3(gl_FragCoord.xy, Big);
+    DistanceMap = vec3(gl_FragCoord.xy, 0);
 }
