@@ -444,13 +444,13 @@ static MeshPod CreateTrefoil()
         GLushort n = 0;
         for (GLushort i = 0; i < Slices; i++) {
             for (GLushort j = 0; j < Stacks; j++) {
-                *pIndex++ = n + j;
+                *pIndex++ = (n + j + Stacks) % VertexCount;
                 *pIndex++ = n + (j + 1) % Stacks;
-                *pIndex++ = (n + j + Stacks) % VertexCount;
+                *pIndex++ = n + j;
                 
-                *pIndex++ = (n + j + Stacks) % VertexCount;
-                *pIndex++ = (n + (j + 1) % Stacks) % VertexCount;
                 *pIndex++ = (n + (j + 1) % Stacks + Stacks) % VertexCount;
+                *pIndex++ = (n + (j + 1) % Stacks) % VertexCount;
+                *pIndex++ = (n + j + Stacks) % VertexCount;
             }
             n += Stacks;
         }
