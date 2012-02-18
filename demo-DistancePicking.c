@@ -32,7 +32,7 @@ struct {
     GLuint SpriteProgram;
     GLuint QuadVao;
     GLuint SinglePointVao;
-    GLuint OffscreenFbo, ColorTexture, IdTexture;
+    GLuint OffscreenFbo, ColorTexture, DistanceTexture;
     MeshPod TrefoilKnot;
     TransformsPod Transforms;
 } Globals;
@@ -47,7 +47,7 @@ static GLuint CurrentProgram();
 static GLuint CreateSinglePoint();
 static void ModifySinglePoint(GLuint vao, Vector3 v);
 static MeshPod CreateTrefoil();
-static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture);
+static GLuint CreateRenderTarget();
 static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
@@ -67,8 +67,6 @@ PezConfig PezGetConfig()
 
 void PezInitialize()
 {
-    //    const float ViewHeight = 5.0f;
-    //    const float ViewNear = 65, ViewFar = 90;
     const PezConfig cfg = PezGetConfig();
 
     // Compile shaders
@@ -77,8 +75,6 @@ void PezInitialize()
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
 
     // Set up viewport
-    //    const float w = ViewHeight * cfg.Width / cfg.Height;
-
     float fovy = 16 * TwoPi / 180;
     float aspect = (float) cfg.Width / cfg.Height;
     float zNear = 0.1, zFar = 300;
@@ -91,8 +87,7 @@ void PezInitialize()
 
     glUseProgram(Globals.LitProgram);
     Globals.TrefoilKnot = CreateTrefoil();
-
-    Globals.OffscreenFbo = CreateRenderTarget(&Globals.ColorTexture, &Globals.IdTexture);
+    Globals.OffscreenFbo = CreateRenderTarget();
 
     // Misc Initialization
     Globals.IsDragging = false;
@@ -276,8 +271,11 @@ static void ModifySinglePoint(GLuint vao, Vector3 v)
     glBufferData(GL_ARRAY_BUFFER, size, &v.x, GL_STATIC_DRAW);
 }
 
-static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture)
+static GLuint CreateRenderTarget()
 {
+    GLuint* colorTexture = &Globals.ColorTexture;
+    GLuint* distanceTexture = &Globals.DistanceTexture;
+
     pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
     PezConfig cfg = PezGetConfig();
 
@@ -290,20 +288,20 @@ static GLuint CreateRenderTarget(GLuint* colorTexture, GLuint* idTexture)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cfg.Width, cfg.Height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
     pezCheck(GL_NO_ERROR == glGetError(), "Unable to create color texture.");
 
-    glGenTextures(1, idTexture);
-    glBindTexture(GL_TEXTURE_2D, *idTexture);
+    glGenTextures(1, distanceTexture);
+    glBindTexture(GL_TEXTURE_2D, *distanceTexture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, cfg.Width, cfg.Height, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, 0);
-    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create id texture.");
+    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create distance texture.");
 
     GLuint fboHandle;
     glGenFramebuffers(1, &fboHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *colorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, *idTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, *distanceTexture, 0);
 
     GLuint depthBuffer;
     glGenRenderbuffers(1, &depthBuffer);
