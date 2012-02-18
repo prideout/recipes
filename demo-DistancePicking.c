@@ -388,7 +388,6 @@ static GLuint CreateRenderTarget()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cfg.Width, cfg.Height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
     pezCheck(GL_NO_ERROR == glGetError(), "Unable to create color texture.");
 
-    
     GLuint* distanceTexture = &Globals.DistanceTextures[0];
     for (int i = 0; i < 2; i++) {
         glGenTextures(1, distanceTexture);
@@ -397,7 +396,7 @@ static GLuint CreateRenderTarget()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, cfg.Width, cfg.Height, 0, GL_RGBA, GL_FLOAT, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, cfg.Width, cfg.Height, 0, GL_RGB, GL_FLOAT, 0);
         pezCheck(GL_NO_ERROR == glGetError(), "Unable to create distance texture.");
         ++distanceTexture;
     }

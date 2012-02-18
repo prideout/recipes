@@ -24,7 +24,7 @@ void main()
 
 -- Erode.FS
 
-layout(location = 1) out vec4 DistanceMap;
+layout(location = 1) out vec3 DistanceMap;
 
 in vec2 vTexCoord;
 
@@ -34,31 +34,31 @@ uniform vec2 Offset;
 
 void main()
 {
-    vec4 A4 = texture2D(Sampler, vTexCoord);
-    vec4 e4 = texture2D(Sampler, vTexCoord + Offset);
-    vec4 w4 = texture2D(Sampler, vTexCoord - Offset);
+    vec3 A3 = texture2D(Sampler, vTexCoord).xyz;
+    vec3 e3 = texture2D(Sampler, vTexCoord + Offset).xyz;
+    vec3 w3 = texture2D(Sampler, vTexCoord - Offset).xyz;
 
-    vec2 A = A4.zw;
-    vec2 e = Beta + e4.zw;
-    vec2 w = Beta + w4.zw;
-    vec2 B = min(min(A, e), w);
+    float A = A3.z;
+    float e = Beta + e3.z;
+    float w = Beta + w3.z;
+    float B = min(min(A, e), w);
 
     if (A == B)
         discard;
 
-    float x = w.x;
-    if (A.x <= e.x && e.x <= w.x) x = A4.x;
-    if (A.x <= w.x && w.x <= e.x) x = A4.x;
-    if (e.x <= A.x && A.x <= w.x) x = e4.x;
-    if (e.x <= w.x && w.x <= A.x) x = e4.x;
+    float x = w3.x;
+    if (A <= e && e <= w) x = A3.x;
+    if (A <= w && w <= e) x = A3.x;
+    if (e <= A && A <= w) x = e3.x;
+    if (e <= w && w <= A) x = e3.x;
 
-    float y = w.y;
-    if (A.y <= e.y && e.y <= w.y) y = A4.y;
-    if (A.y <= w.y && w.y <= e.y) y = A4.y;
-    if (e.y <= A.y && A.y <= w.y) y = e4.y;
-    if (e.y <= w.y && w.y <= A.y) y = e4.y;
+    float y = w3.y;
+    if (A <= e && e <= w) y = A3.y;
+    if (A <= w && w <= e) y = A3.y;
+    if (e <= A && A <= w) y = e3.y;
+    if (e <= w && w <= A) y = e3.y;
 
-    DistanceMap = vec4(x, y, B);
+    DistanceMap = vec3(x, y, B);
 }
 
 -- VS
@@ -105,7 +105,7 @@ void main()
 in vec3 vNormal;
 
 layout(location = 0) out vec4 FragColor;
-layout(location = 1) out vec4 DistanceMap;
+layout(location = 1) out vec3 DistanceMap;
 
 uniform vec3 LightPosition = vec3(0.25, 0.25, 1.0);
 uniform vec3 AmbientMaterial = vec3(0.04, 0.04, 0.04);
@@ -135,7 +135,7 @@ void main()
         lighting += sf * SpecularMaterial;
 
     FragColor = vec4(lighting, 1);
-    DistanceMap = vec4(gl_FragCoord.xy, Big, Big);
+    DistanceMap = vec3(gl_FragCoord.xy, 0);
 }
 
 ----------------------------------
@@ -188,7 +188,7 @@ void main()
 flat in int gId;
 
 out vec4 FragColor;
-out vec4 DistanceMap;
+out vec3 DistanceMap;
 
 in vec2 gCenterCoord;
 uniform bool Nailboard;
@@ -236,5 +236,5 @@ void main()
         }
     }
 
-    DistanceMap = vec4(gl_FragCoord.xy, Big, Big);
+    DistanceMap = vec3(gl_FragCoord.xy, Big);
 }
