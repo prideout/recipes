@@ -133,6 +133,25 @@ static void _SwapPingPong()
     Globals.DistanceTextures[0] = t1;
 }
 
+static void _DrawBuffers(const char* fsOut0, GLenum attachment0,
+                         const char* fsOut1, GLenum attachment1)
+{
+    GLenum slots[] = {GL_NONE, GL_NONE};
+    int numSlots = sizeof(slots) / sizeof(slots[0]);
+
+    int slot0 = f(fsOut0);
+    pezCheck(slot0 >= 0 && slot0 < numSlots, "Bad juju: %s\n", fsOut0);
+    slots[slot0] = attachment0;
+
+    if (fsOut1) {
+        int slot1 = f(fsOut1);
+        pezCheck(slot1 >= 0 && slot1 < numSlots, "Bad juju: %s\n", fsOut1);
+        slots[slot1] = attachment1;
+    }
+
+    glDrawBuffers(numSlots, &slots[0]);
+}
+
 void PezRender()
 {
     static int frame = 0; frame++;
@@ -144,14 +163,11 @@ void PezRender()
     float* pNormalMatrix = &Globals.Transforms.PackedNormal[0];
     MeshPod* mesh = &Globals.TrefoilKnot;
 
-    GLenum bufs[2];
-    bufs[f("FragColor")] = Globals.ColorAttachment;
-    bufs[f("DistanceMap")] = Globals.DistanceAttachments[0];
-
     // Create the seed texture and perform lighting simultaneously:
     glBindFramebuffer(GL_FRAMEBUFFER, Globals.OffscreenFbo);
     glUseProgram(Globals.LitProgram);
-    glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
+    _DrawBuffers("FragColor", Globals.ColorAttachment,
+                 "DistanceMap", Globals.DistanceAttachments[0]);
     glBindVertexArray(mesh->Vao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
@@ -172,24 +188,18 @@ void PezRender()
         
         // Swap the source & destination surfaces and bind them:
         _SwapPingPong();
-        bufs[f("DistanceMap")] = Globals.DistanceAttachments[0];
-        bufs[0] = GL_NONE;
         glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
-        glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
+        _DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
         pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
 
         // Copy the entire source image to the destination surface:
         glUseProgram(Globals.QuadProgram);
-        bufs[f("FragColor")] = Globals.DistanceAttachments[0];
-        bufs[1] = GL_NONE; // need an encapsulation for this horrible API ---------------------------------- !!!!!!
-        glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
+        _DrawBuffers("FragColor", Globals.DistanceAttachments[0], 0, 0);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         // Execute the erosion shader and measure how many pixels were written:
         glUseProgram(Globals.ErodeProgram);
-        bufs[f("DistanceMap")] = Globals.DistanceAttachments[0];
-        bufs[0] = GL_NONE;
-        glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
+        _DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
         glUniform1f(u("Beta"), (GLfloat) pass * 2 + 1);
         glBeginQuery(GL_SAMPLES_PASSED, Globals.QueryObject);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
