@@ -19,6 +19,7 @@ typedef struct {
     Matrix4 Modelview;
     Matrix4 View;
     Matrix4 Model;
+    Matrix3 Normal;
     GLfloat PackedNormal[9];
 } TransformsPod;
 
@@ -79,9 +80,9 @@ void PezInitialize()
     // Set up viewport
     //    const float w = ViewHeight * cfg.Width / cfg.Height;
 
-    float fovy = 40 * 180 / TwoPi;
+    float fovy = 16 * TwoPi / 180;
     float aspect = (float) cfg.Width / cfg.Height;
-    float zNear = 0.1, zFar = 3;
+    float zNear = 0.1, zFar = 300;
     Globals.Transforms.Projection = M4MakePerspective(fovy, aspect, zNear, zFar);
     Globals.Transforms.Ortho = M4MakeOrthographic(0, cfg.Width, cfg.Height, 0, 0, 1);
 
@@ -108,12 +109,15 @@ void PezUpdate(float seconds)
     Globals.Theta += seconds * RadiansPerSecond;
     
     // Create the model-view matrix:
-    Globals.Transforms.Model = M4MakeRotationZ(Globals.Theta);
-    Point3 eye = P3MakeFromElems(0, 0, 10);
+    Globals.Transforms.Model = M4MakeRotationY(Globals.Theta);
+    Point3 eye = P3MakeFromElems(0, 0, 4);
     Point3 target = P3MakeFromElems(0, 0, 0);
     Vector3 up = V3MakeFromElems(0, 1, 0);
     Globals.Transforms.View = M4MakeLookAt(eye, target, up);
     Globals.Transforms.Modelview = M4Mul(Globals.Transforms.View, Globals.Transforms.Model);
+    Globals.Transforms.Normal = M4GetUpper3x3(Globals.Transforms.Modelview);
+    for (int i = 0; i < 9; ++i)
+        Globals.Transforms.PackedNormal[i] = M3GetElem(Globals.Transforms.Normal, i/3, i%3);
 }
 
 void PezRender()

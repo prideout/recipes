@@ -75,7 +75,7 @@ uniform float Shininess = 50;
 void main()
 {
     vec3 N = normalize(vNormal);
-    if (!gl_FrontFacing)
+    if (gl_FrontFacing)
         N = -N;
 
     vec3 L = normalize(LightPosition);
