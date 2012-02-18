@@ -52,7 +52,6 @@ typedef struct {
 static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
 static GLuint CurrentProgram();
 static GLuint CreateSinglePoint();
-static void ModifySinglePoint(GLuint vao, Vector3 v);
 static MeshPod CreateTrefoil();
 static GLuint CreateRenderTarget();
 static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
@@ -83,7 +82,7 @@ void PezInitialize()
 
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
-    Globals.SpriteProgram = LoadProgram("VS", "Sprite.GS", "Sprite.FS");
+    Globals.SpriteProgram = LoadProgram("Sprite.VS", "Sprite.GS", "Sprite.FS");
     Globals.ErodeProgram = LoadProgram("Quad.VS", 0, "Erode.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
 
@@ -213,9 +212,7 @@ void PezRender()
     if (true) {
         float x = Globals.Mouse.x;
         float y = Globals.Mouse.y;
-        float z = 0;
-        Vector3 p = {x, y, z};
-        ModifySinglePoint(Globals.SinglePointVao, p);
+        glUniform2f(u("MouseLocation"), x, y);
     }
 
     Matrix4 i = M4MakeIdentity();
@@ -229,7 +226,6 @@ void PezRender()
     glUniformMatrix4fv(u("Modelview"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
-    glUniform1i(u("Nailboard"), GL_FALSE);
     glUniform2f(u("SpriteSize"), 32, 32);
     glUniform2f(u("HalfViewport"), w / 2.0f, h / 2.0f);
     glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
@@ -327,18 +323,6 @@ static GLuint CreateSinglePoint()
     return vao;
 }
 
-static void ModifySinglePoint(GLuint vao, Vector3 v)
-{
-    glBindVertexArray(vao);
-
-    GLuint handle;
-    glGetVertexAttribiv(a("Position"), GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, (GLint*) &handle);
-    glBindBuffer(GL_ARRAY_BUFFER, handle);
-
-    GLsizeiptr size = sizeof(v);
-    glBufferData(GL_ARRAY_BUFFER, size, &v.x, GL_STATIC_DRAW);
-}
-
 static GLuint CreateRenderTarget()
 {
     GLuint* colorTexture = &Globals.ColorTexture;
@@ -423,7 +407,6 @@ static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int d
     }
 
     GLuint vbo, vao;
-    
     glUseProgram(Globals.QuadProgram);
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
@@ -434,7 +417,6 @@ static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int d
     glVertexAttribPointer(a("TexCoord"), 2, GL_FLOAT, GL_FALSE, 16, offset(8));
     glEnableVertexAttribArray(a("Position"));
     glEnableVertexAttribArray(a("TexCoord"));
-    
     return vao;
 }
 
