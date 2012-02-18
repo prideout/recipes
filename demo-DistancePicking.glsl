@@ -76,7 +76,7 @@ void main()
 {
     vec3 N = normalize(vNormal);
     if (gl_FrontFacing)
-        N = -N;
+       N = -N;
 
     vec3 L = normalize(LightPosition);
     vec3 Eye = vec3(0, 0, 1);
