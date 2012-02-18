@@ -31,13 +31,12 @@ in vec2 vTexCoord;
 uniform sampler2D Sampler;
 uniform float Beta;
 uniform vec2 Offset;
-uniform vec2 InverseViewport;
 
 void main()
 {
-    vec3 A3 = texture2D(Sampler, vTexCoord).xyz;
-    vec3 e3 = texture2D(Sampler, vTexCoord + Offset).xyz;
-    vec3 w3 = texture2D(Sampler, vTexCoord - Offset).xyz;
+    vec3 A3 = texture(Sampler, vTexCoord).xyz;
+    vec3 e3 = texture(Sampler, vTexCoord + Offset).xyz;
+    vec3 w3 = texture(Sampler, vTexCoord - Offset).xyz;
 
     float A = A3.z;
     float e = Beta + e3.z;
