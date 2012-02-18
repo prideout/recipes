@@ -30,6 +30,7 @@ struct {
     GLuint LitProgram;
     GLuint QuadProgram;
     GLuint SpriteProgram;
+    GLuint ErodeProgram;
     GLuint QuadVao;
     GLuint SinglePointVao;
     GLuint OffscreenFbo;
@@ -75,6 +76,7 @@ void PezInitialize()
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Globals.SpriteProgram = LoadProgram("VS", "Sprite.GS", "Sprite.FS");
+    Globals.ErodeProgram = LoadProgram("Quad.VS", 0, "Erode.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
 
     // Set up viewport
@@ -322,7 +324,7 @@ static GLuint CreateRenderTarget()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, cfg.Width, cfg.Height, 0, GL_RGB, GL_FLOAT, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, cfg.Width, cfg.Height, 0, GL_RGBA, GL_FLOAT, 0);
         pezCheck(GL_NO_ERROR == glGetError(), "Unable to create distance texture.");
         ++distanceTexture;
     }

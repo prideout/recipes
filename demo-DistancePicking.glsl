@@ -22,6 +22,43 @@ void main()
     FragColor = Scale * texture(Sampler, vTexCoord);
 }
 
+-- Erode.FS
+
+in vec2 vTexCoord;
+out vec4 DistanceMap;
+uniform sampler2D Sampler;
+uniform float Beta;
+uniform vec2 Offset;
+
+void main()
+{
+    vec4 A4 = texture2D(Sampler, vTexCoord);
+    vec4 e4 = texture2D(Sampler, vTexCoord + Offset);
+    vec4 w4 = texture2D(Sampler, vTexCoord - Offset);
+
+    vec2 A = A4.zw;
+    vec2 e = Beta + e4.zw;
+    vec2 w = Beta + w4.zw;
+    vec2 B = min(min(A, e), w);
+
+    if (A == B)
+        discard;
+
+    float x = w.x;
+    if (A.x <= e.x && e.x <= w.x) x = A4.x;
+    if (A.x <= w.x && w.x <= e.x) x = A4.x;
+    if (e.x <= A.x && A.x <= w.x) x = e4.x;
+    if (e.x <= w.x && w.x <= A.x) x = e4.x;
+
+    float y = w.y;
+    if (A.y <= e.y && e.y <= w.y) x = A4.y;
+    if (A.y <= w.y && w.y <= e.y) x = A4.y;
+    if (e.y <= A.y && A.y <= w.y) x = e4.y;
+    if (e.y <= w.y && w.y <= A.y) x = e4.y;
+
+    DistanceMap = vec4(x, y, B);
+}
+
 -- VS
 
 in vec4 Position;
@@ -65,7 +102,7 @@ void main()
 
 in vec3 vNormal;
 out vec4 FragColor;
-out vec3 DistanceMap;
+out vec4 DistanceMap;
 
 uniform vec3 LightPosition = vec3(0.25, 0.25, 1.0);
 uniform vec3 AmbientMaterial = vec3(0.04, 0.04, 0.04);
@@ -73,6 +110,7 @@ uniform vec3 SpecularMaterial = vec3(0.5, 0.5, 0.5);
 uniform vec3 FrontMaterial = vec3(0.75, 0.75, 0.5);
 uniform vec3 BackMaterial = vec3(0.5, 0.5, 0.75);
 uniform float Shininess = 50;
+uniform float Big = 99999.0;
 
 void main()
 {
@@ -94,7 +132,7 @@ void main()
         lighting += sf * SpecularMaterial;
 
     FragColor = vec4(lighting, 1);
-    DistanceMap = vec3(gl_FragCoord.xy, 0);
+    DistanceMap = vec4(gl_FragCoord.xy, Big, Big);
 }
 
 ----------------------------------
@@ -147,11 +185,13 @@ void main()
 flat in int gId;
 
 out vec4 FragColor;
-out vec3 DistanceMap;
+out vec4 DistanceMap;
 
 in vec2 gCenterCoord;
 uniform bool Nailboard;
 uniform vec2 SpriteSize;
+
+uniform float Big = 99999.0;
 
 vec3 colorFromIndex(int i)
 {
@@ -193,5 +233,5 @@ void main()
         }
     }
 
-    DistanceMap = vec3(gl_FragCoord.xy, 0);
+    DistanceMap = vec4(gl_FragCoord.xy, Big, Big);
 }
