@@ -15,10 +15,11 @@ void main()
 in vec2 vTexCoord;
 out vec4 FragColor;
 uniform sampler2D Sampler;
+uniform float Scale;
 
 void main()
 {
-    FragColor = texture(Sampler, vTexCoord);
+    FragColor = Scale * texture(Sampler, vTexCoord);
 }
 
 -- VS
@@ -64,6 +65,7 @@ void main()
 
 in vec3 vNormal;
 out vec4 FragColor;
+out vec3 DistanceMap;
 
 uniform vec3 LightPosition = vec3(0.25, 0.25, 1.0);
 uniform vec3 AmbientMaterial = vec3(0.04, 0.04, 0.04);
@@ -92,6 +94,7 @@ void main()
         lighting += sf * SpecularMaterial;
 
     FragColor = vec4(lighting, 1);
+    DistanceMap = vec3(gl_FragCoord.xy, 0);
 }
 
 ----------------------------------
@@ -142,7 +145,10 @@ void main()
 -- Sprite.FS
 
 flat in int gId;
+
 out vec4 FragColor;
+out vec3 DistanceMap;
+
 in vec2 gCenterCoord;
 uniform bool Nailboard;
 uniform vec2 SpriteSize;
@@ -186,4 +192,6 @@ void main()
             FragColor = vec4(0, 0, 0, A);
         }
     }
+
+    DistanceMap = vec3(gl_FragCoord.xy, 0);
 }
