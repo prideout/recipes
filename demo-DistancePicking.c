@@ -55,6 +55,9 @@ static void ModifySinglePoint(GLuint vao, Vector3 v);
 static MeshPod CreateTrefoil();
 static GLuint CreateRenderTarget();
 static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
+static void SwapPingPong();
+static void DrawBuffers(const char* fsOut0, GLenum attachment0,
+                        const char* fsOut1, GLenum attachment1);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
@@ -123,35 +126,6 @@ void PezUpdate(float seconds)
         Globals.Transforms.PackedNormal[i] = M3GetElem(Globals.Transforms.Normal, i/3, i%3);
 }
 
-static void _SwapPingPong()
-{
-    GLenum t0 = Globals.DistanceAttachments[1];
-    Globals.DistanceAttachments[1] = Globals.DistanceAttachments[0];
-    Globals.DistanceAttachments[0] = t0;
-    GLuint t1 = Globals.DistanceTextures[1];
-    Globals.DistanceTextures[1] = Globals.DistanceTextures[0];
-    Globals.DistanceTextures[0] = t1;
-}
-
-static void _DrawBuffers(const char* fsOut0, GLenum attachment0,
-                         const char* fsOut1, GLenum attachment1)
-{
-    GLenum slots[] = {GL_NONE, GL_NONE};
-    int numSlots = sizeof(slots) / sizeof(slots[0]);
-
-    int slot0 = f(fsOut0);
-    pezCheck(slot0 >= 0 && slot0 < numSlots, "Bad juju: %s\n", fsOut0);
-    slots[slot0] = attachment0;
-
-    if (fsOut1) {
-        int slot1 = f(fsOut1);
-        pezCheck(slot1 >= 0 && slot1 < numSlots, "Bad juju: %s\n", fsOut1);
-        slots[slot1] = attachment1;
-    }
-
-    glDrawBuffers(numSlots, &slots[0]);
-}
-
 void PezRender()
 {
     static int frame = 0; frame++;
@@ -166,8 +140,8 @@ void PezRender()
     // Create the seed texture and perform lighting simultaneously:
     glBindFramebuffer(GL_FRAMEBUFFER, Globals.OffscreenFbo);
     glUseProgram(Globals.LitProgram);
-    _DrawBuffers("FragColor", Globals.ColorAttachment,
-                 "DistanceMap", Globals.DistanceAttachments[0]);
+    DrawBuffers("FragColor", Globals.ColorAttachment,
+                "DistanceMap", Globals.DistanceAttachments[0]);
     glBindVertexArray(mesh->Vao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
@@ -187,19 +161,19 @@ void PezRender()
     for (int pass = 0; pass < MaxPassCount; ++pass) {
         
         // Swap the source & destination surfaces and bind them:
-        _SwapPingPong();
+        SwapPingPong();
         glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
-        _DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
+        DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
         pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
 
         // Copy the entire source image to the destination surface:
         glUseProgram(Globals.QuadProgram);
-        _DrawBuffers("FragColor", Globals.DistanceAttachments[0], 0, 0);
+        DrawBuffers("FragColor", Globals.DistanceAttachments[0], 0, 0);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
         // Execute the erosion shader and measure how many pixels were written:
         glUseProgram(Globals.ErodeProgram);
-        _DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
+        DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
         glUniform1f(u("Beta"), (GLfloat) pass * 2 + 1);
         glBeginQuery(GL_SAMPLES_PASSED, Globals.QueryObject);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
@@ -593,4 +567,33 @@ static MeshPod CreateTrefoil()
     glEnableVertexAttribArray(a("Normal"));
 
     return mesh;
+}
+
+static void SwapPingPong()
+{
+    GLenum t0 = Globals.DistanceAttachments[1];
+    Globals.DistanceAttachments[1] = Globals.DistanceAttachments[0];
+    Globals.DistanceAttachments[0] = t0;
+    GLuint t1 = Globals.DistanceTextures[1];
+    Globals.DistanceTextures[1] = Globals.DistanceTextures[0];
+    Globals.DistanceTextures[0] = t1;
+}
+
+static void DrawBuffers(const char* fsOut0, GLenum attachment0,
+                        const char* fsOut1, GLenum attachment1)
+{
+    GLenum slots[] = {GL_NONE, GL_NONE};
+    int numSlots = sizeof(slots) / sizeof(slots[0]);
+
+    int slot0 = f(fsOut0);
+    pezCheck(slot0 >= 0 && slot0 < numSlots, "Bad juju: %s\n", fsOut0);
+    slots[slot0] = attachment0;
+
+    if (fsOut1) {
+        int slot1 = f(fsOut1);
+        pezCheck(slot1 >= 0 && slot1 < numSlots, "Bad juju: %s\n", fsOut1);
+        slots[slot1] = attachment1;
+    }
+
+    glDrawBuffers(numSlots, &slots[0]);
 }
