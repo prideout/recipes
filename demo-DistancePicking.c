@@ -135,6 +135,9 @@ void PezRender()
     float initColor[4] = { 0.5f, 0.6f, 0.7f, 1.0f };
     float initDistance[4] = { 0, 0, FLT_MAX, 0 };
     int MaxPassCount = 50;
+    const float w = PezGetConfig().Width;
+    const float h = PezGetConfig().Height;
+    bool isComputingDistance = true;
 
     // Create the seed texture and perform lighting simultaneously:
     glBindFramebuffer(GL_FRAMEBUFFER, Globals.OffscreenFbo);
@@ -149,16 +152,19 @@ void PezRender()
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
     glClear(GL_DEPTH_BUFFER_BIT);
     glClearBufferfv(GL_COLOR, 0, initColor);
-    glClearBufferfv(GL_COLOR, 1, initDistance);
+    if (isComputingDistance) {
+        glClearBufferfv(GL_COLOR, 1, initDistance);
+    }
     glEnable(GL_DEPTH_TEST);
     glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
     glDisable(GL_DEPTH_TEST);
 
     // Compute a distance field, first with horizontal passes, then with vertical passes:
     glUseProgram(Globals.ErodeProgram);
+    glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
     glBindVertexArray(Globals.QuadVao);
     glUniform2f(u("Offset"), 1.0f / PezGetConfig().Width, 0);
-    for (int pass = 0, isVertical = 0; true; ++pass) {
+    for (int pass = 0, isVertical = 0; isComputingDistance; ++pass) {
         
         // Swap the source & destination surfaces and bind them:
         SwapPingPong();
@@ -189,10 +195,13 @@ void PezRender()
     glBindVertexArray(Globals.QuadVao);
     if (Globals.IsDragging) {
         glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
-        glUniform1f(u("Scale"), 1.0f / PezGetConfig().Width);
+        glUniform3f(u("Scale"),
+                    1.0f / PezGetConfig().Width,
+                    1.0f / PezGetConfig().Width,
+                    1.0f / 100.0f );
     } else {
         glBindTexture(GL_TEXTURE_2D, Globals.ColorTexture);
-        glUniform1f(u("Scale"), 1.0f);
+        glUniform3f(u("Scale"), 1.0f, 1.0f, 1.0f);
     }
     glDisable(GL_DEPTH_TEST);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -208,16 +217,15 @@ void PezRender()
     // Update the teeny VBO for the mouse cursor
     if (true) {
         float x = Globals.Mouse.x;
-        float y = Globals.Mouse.y;
+        float y = h - Globals.Mouse.y - 1;
         glUniform2f(u("MouseLocation"), x, y);
     }
 
     Matrix4 i = M4MakeIdentity();
     float* pIdentity = (float*) &i;
     float* pOrtho = (float*) &Globals.Transforms.Ortho;
-    const float w = PezGetConfig().Width;
-    const float h = PezGetConfig().Height;
 
+    glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pIdentity);
     glUniformMatrix4fv(u("Modelview"), 1, 0, pIdentity);
@@ -226,9 +234,9 @@ void PezRender()
     glUniform2f(u("SpriteSize"), 32, 32);
     glUniform2f(u("HalfViewport"), w / 2.0f, h / 2.0f);
     glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
+    glUniform1f(u("Height"), h);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
-    //    glBindVertexArray(Globals.SinglePointVao);
     glDrawArrays(GL_POINTS, 0, 1);
     glDisable(GL_BLEND);
 }
@@ -298,26 +306,6 @@ static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKe
     pezCheck(linkSuccess, "Can't link shaders:\n%s", spew);
     glUseProgram(programHandle);
     return programHandle;
-}
-
-static GLuint CreateSinglePoint()
-{
-    GLuint vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    Vector3 v = V3MakeFromScalar(0);
-    GLsizeiptr size = sizeof(v);
-
-    GLuint handle;
-    glGenBuffers(1, &handle);
-    glBindBuffer(GL_ARRAY_BUFFER, handle);
-    glBufferData(GL_ARRAY_BUFFER, size, &v.x, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(a("Position"));
-    glVertexAttribPointer(a("Position"), 3, GL_FLOAT, GL_FALSE,
-                          size, 0);
-
-    return vao;
 }
 
 static GLuint CreateRenderTarget()

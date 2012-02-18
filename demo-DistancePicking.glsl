@@ -15,11 +15,11 @@ void main()
 in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 uniform sampler2D Sampler;
-uniform float Scale;
+uniform vec3 Scale;
 
 void main()
 {
-    FragColor = Scale * texture(Sampler, vTexCoord);
+    FragColor = vec4(Scale, 1) * texture(Sampler, vTexCoord);
 }
 
 -- Erode.FS
@@ -31,6 +31,7 @@ in vec2 vTexCoord;
 uniform sampler2D Sampler;
 uniform float Beta;
 uniform vec2 Offset;
+uniform vec2 InverseViewport;
 
 void main()
 {
@@ -45,22 +46,15 @@ void main()
 
     if (A == B) {
         discard;
-        return;
     }
 
-    float x = w3.x;
-    if (A <= e && e <= w) x = A3.x;
-    if (A <= w && w <= e) x = A3.x;
-    if (e <= A && A <= w) x = e3.x;
-    if (e <= w && w <= A) x = e3.x;
+    DistanceMap.xy = w3.xy;
+    DistanceMap.z = B;
 
-    float y = w3.y;
-    if (A <= e && e <= w) y = A3.y;
-    if (A <= w && w <= e) y = A3.y;
-    if (e <= A && A <= w) y = e3.y;
-    if (e <= w && w <= A) y = e3.y;
-
-    DistanceMap = vec3(x, y, B);
+    if (A <= e && e <= w) DistanceMap.xy = A3.xy;
+    if (A <= w && w <= e) DistanceMap.xy = A3.xy;
+    if (e <= A && A <= w) DistanceMap.xy = e3.xy;
+    if (e <= w && w <= A) DistanceMap.xy = e3.xy;
 }
 
 -- Lit.VS
@@ -130,10 +124,16 @@ uniform mat4 Modelview;
 uniform mat4 ViewMatrix;
 uniform mat4 ModelMatrix;
 
+uniform sampler2D Sampler;
+uniform vec2 InverseViewport;
+uniform float Height;
+
 void main()
 {
-    vPosition = vec3(MouseLocation, 0);
-    gl_Position = Projection * Modelview * vec4(MouseLocation, 0, 1);
+    vec3 distance = texture(Sampler, MouseLocation * InverseViewport).xyz;
+    vPosition = vec3(distance.xy, 0);
+    vPosition.y = Height - vPosition.y;
+    gl_Position = Projection * Modelview * vec4(vPosition, 1);
 }
 
 -- Sprite.GS
@@ -156,6 +156,11 @@ void main()
     vec4 U = vec4(SpriteSize.x, 0, 0, 0) * InverseViewport.x;
     vec4 V = vec4(0, SpriteSize.y, 0, 0) * InverseViewport.y;
     gCenterCoord = toFragCoord(P);
+
+    // Discard the cursor if it's not near anything
+    if (gCenterCoord.x < 0.01 && gCenterCoord.y < 0.01) {
+        return;
+    }
 
     P.z = 0;
     P.xy /= P.w;
