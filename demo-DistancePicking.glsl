@@ -43,8 +43,10 @@ void main()
     float w = Beta + w3.z;
     float B = min(min(A, e), w);
 
-    if (A == B)
+    if (A == B) {
         discard;
+        return;
+    }
 
     float x = w3.x;
     if (A <= e && e <= w) x = A3.x;

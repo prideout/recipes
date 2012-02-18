@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <float.h>
 #include "pez.h"
 #include "vmath.h"
 
@@ -105,7 +106,6 @@ void PezInitialize()
     Globals.IsDragging = false;
     Globals.Theta = 0;
     Globals.Mouse.z = -1;
-    glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
@@ -136,6 +136,9 @@ void PezRender()
     float* pProjection = (float*) &Globals.Transforms.Projection;
     float* pNormalMatrix = &Globals.Transforms.PackedNormal[0];
     MeshPod* mesh = &Globals.TrefoilKnot;
+    float initColor[4] = { 0.5f, 0.6f, 0.7f, 1.0f };
+    float initDistance[4] = { 0, 0, FLT_MAX, 0 };
+    int MaxPassCount = 50;
 
     // Create the seed texture and perform lighting simultaneously:
     glBindFramebuffer(GL_FRAMEBUFFER, Globals.OffscreenFbo);
@@ -148,70 +151,36 @@ void PezRender()
     glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
-
     glClear(GL_DEPTH_BUFFER_BIT);
-    float initColor[4] = { 0.5f, 0.6f, 0.7f, 1.0f };
-    float initDistance[4] = { 0, 0, 999.0f, 0 };
     glClearBufferfv(GL_COLOR, 0, initColor);
     glClearBufferfv(GL_COLOR, 1, initDistance);
-
     glEnable(GL_DEPTH_TEST);
     glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
     glDisable(GL_DEPTH_TEST);
 
-    // Perform erosion; first horizontal, than vertical:
+    // Compute a distance field, first with horizontal passes, then with vertical passes:
     glUseProgram(Globals.ErodeProgram);
     glBindVertexArray(Globals.QuadVao);
     glUniform2f(u("Offset"), 1.0f / PezGetConfig().Width, 0);
-    bool isVertical = false;
-    const int MaxPassCount = 500;
-    for (int pass = 0; pass < MaxPassCount; ++pass) {
+    for (int pass = 0, isVertical = 0; true; ++pass) {
         
         // Swap the source & destination surfaces and bind them:
         SwapPingPong();
         glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
         DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
-        pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
 
-        // Copy the entire source image to the destination surface:
-#define FAST 1
-#ifndef FAST
-        glUseProgram(Globals.QuadProgram);
-        glUniform1f(u("Scale"), 1.0f);
-        DrawBuffers("FragColor", Globals.DistanceAttachments[0], 0, 0);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-#endif
-
-        // Execute the erosion shader and measure how many pixels were written:
-        glUseProgram(Globals.ErodeProgram);
-        DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
+        // Draw the full-screen quad:
         glUniform1f(u("Beta"), (GLfloat) pass * 2 + 1);
-
-#ifdef FAST
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        if (pass < 50)
+        if (pass < MaxPassCount)
             continue;
-#else
-        glBeginQuery(GL_SAMPLES_PASSED, Globals.QueryObject);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        glEndQuery(GL_SAMPLES_PASSED);
 
-        // Measure how many pixels actually got updated:
-        GLuint sampleCount = 0;
-        glGetQueryObjectuiv(Globals.QueryObject, GL_QUERY_RESULT, &sampleCount);
-        if (sampleCount != 0) {
-            continue;
-        }
-#endif
-
-        // If all pixels were discarded, we're done with this stage of processing:
+        // If we exhausted the pass count, we're done with this phase:
         if (!isVertical) {
-            if (frame == 2) pezPrintString("Horizontal took %d passes\n", pass);
-            isVertical = true;
+            isVertical = !isVertical;
             pass = 0;
             glUniform2f(u("Offset"), 0, 1.0f / PezGetConfig().Height);
         } else {
-            if (frame == 2) pezPrintString("Vertical took %d passes\n", pass);
             break;
         }
     }
@@ -241,7 +210,7 @@ void PezRender()
     glUseProgram(Globals.SpriteProgram);
 
     // Update the teeny VBO for the mouse cursor
-    if (1) {
+    if (true) {
         float x = Globals.Mouse.x;
         float y = Globals.Mouse.y;
         float z = 0;
@@ -471,10 +440,8 @@ static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int d
 
 static Vector3 EvaluateTrefoil(float s, float t)
 {
-    const float a = 0.5f;
-    const float b = 0.3f;
-    const float c = 0.5f;
-    const float d = 0.1f;
+    const float a = 0.5f; const float b = 0.3f;
+    const float c = 0.5f; const float d = 0.1f;
     const float u = (1 - s) * 2 * TwoPi;
     const float v = t * TwoPi;
     const float r = a + b * cos(1.5f * u);
@@ -510,7 +477,7 @@ static MeshPod CreateTrefoil()
     glBindVertexArray(mesh.Vao);
 
     // Create a buffer with interleaved positions and normals
-    if (1) {
+    if (true) {
         Vertex verts[VertexCount];
         Vertex* pVert = &verts[0];
         float ds = 1.0f / Slices;
@@ -543,7 +510,7 @@ static MeshPod CreateTrefoil()
     }
 
     // Create a buffer of 16-bit indices
-    if (1) {
+    if (true) {
         GLushort inds[IndexCount];
         GLushort* pIndex = &inds[0];
         GLushort n = 0;
@@ -593,6 +560,11 @@ static void SwapPingPong()
     Globals.DistanceTextures[0] = t1;
 }
 
+// Wraps glDrawBuffers so that unused slots are easily zeroed out.
+// Takes pairs: fragment shader out variable + FBO attachment
+// For example: "MyFragColor" + GL_COLOR_ATTACHMENT0
+// Since this queries for a fragment shader location, a chosen shader
+// must be bound when this is called.
 static void DrawBuffers(const char* fsOut0, GLenum attachment0,
                         const char* fsOut1, GLenum attachment1)
 {
