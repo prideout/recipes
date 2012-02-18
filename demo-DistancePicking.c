@@ -109,7 +109,7 @@ void PezUpdate(float seconds)
     
     // Create the model-view matrix:
     Globals.Transforms.Model = M4MakeRotationZ(Globals.Theta);
-    Point3 eye = P3MakeFromElems(0, 0, 2);
+    Point3 eye = P3MakeFromElems(0, 0, 10);
     Point3 target = P3MakeFromElems(0, 0, 0);
     Vector3 up = V3MakeFromElems(0, 1, 0);
     Globals.Transforms.View = M4MakeLookAt(eye, target, up);
