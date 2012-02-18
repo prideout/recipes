@@ -164,7 +164,7 @@ void PezRender()
     glBindVertexArray(Globals.QuadVao);
     glUniform2f(u("Offset"), 1.0f / PezGetConfig().Width, 0);
     bool isVertical = false;
-    const int MaxPassCount = 512;
+    const int MaxPassCount = 128;
     for (int pass = 0; pass < MaxPassCount; ++pass) {
         
         // Swap the source & destination surfaces and bind them:
@@ -174,15 +174,24 @@ void PezRender()
         pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
 
         // Copy the entire source image to the destination surface:
+#define FAST 1
+#ifndef FAST
         glUseProgram(Globals.QuadProgram);
         glUniform1f(u("Scale"), 1.0f);
         DrawBuffers("FragColor", Globals.DistanceAttachments[0], 0, 0);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+#endif
 
         // Execute the erosion shader and measure how many pixels were written:
         glUseProgram(Globals.ErodeProgram);
         DrawBuffers("DistanceMap", Globals.DistanceAttachments[0], 0, 0);
         glUniform1f(u("Beta"), (GLfloat) pass * 2 + 1);
+
+#ifdef FAST
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        if (pass < 36)
+            continue;
+#else
         glBeginQuery(GL_SAMPLES_PASSED, Globals.QueryObject);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
         glEndQuery(GL_SAMPLES_PASSED);
@@ -193,6 +202,7 @@ void PezRender()
         if (sampleCount != 0) {
             continue;
         }
+#endif
 
         // If all pixels were discarded, we're done with this stage of processing:
         if (!isVertical) {
