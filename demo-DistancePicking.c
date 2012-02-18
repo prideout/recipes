@@ -150,7 +150,7 @@ void PezRender()
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
 
     glClear(GL_DEPTH_BUFFER_BIT);
-    float initColor[4] = { 0, 0, 0, 0 };
+    float initColor[4] = { 0.5f, 0.6f, 0.7f, 1.0f };
     float initDistance[4] = { 0, 0, 999.0f, 0 };
     glClearBufferfv(GL_COLOR, 0, initColor);
     glClearBufferfv(GL_COLOR, 1, initDistance);
@@ -164,7 +164,7 @@ void PezRender()
     glBindVertexArray(Globals.QuadVao);
     glUniform2f(u("Offset"), 1.0f / PezGetConfig().Width, 0);
     bool isVertical = false;
-    const int MaxPassCount = 128;
+    const int MaxPassCount = 500;
     for (int pass = 0; pass < MaxPassCount; ++pass) {
         
         // Swap the source & destination surfaces and bind them:
@@ -189,7 +189,7 @@ void PezRender()
 
 #ifdef FAST
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-        if (pass < 36)
+        if (pass < 50)
             continue;
 #else
         glBeginQuery(GL_SAMPLES_PASSED, Globals.QueryObject);
@@ -394,7 +394,7 @@ static GLuint CreateRenderTarget()
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, cfg.Width, cfg.Height, 0, GL_RGB, GL_FLOAT, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, cfg.Width, cfg.Height, 0, GL_RGB, GL_HALF_FLOAT, 0);
         pezCheck(GL_NO_ERROR == glGetError(), "Unable to create distance texture.");
         ++distanceTexture;
     }
