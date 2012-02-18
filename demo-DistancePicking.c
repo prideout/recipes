@@ -195,21 +195,22 @@ void PezRender()
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
         glEndQuery(GL_SAMPLES_PASSED);
 
-        // If all pixels were discarded, we're done with this stage of processing:
+        // Measure how many pixels actually got updated:
         GLuint sampleCount = 0;
         glGetQueryObjectuiv(Globals.QueryObject, GL_QUERY_RESULT, &sampleCount);
-        if (sampleCount == 0) {
-            if (!isVertical) {
-                if (frame == 2)
-                    pezPrintString("Horizontal took %d passes\n", pass);
-                isVertical = true;
-                pass = 0;
-                glUniform2f(u("Offset"), 0, 1.0f / PezGetConfig().Height);
-            } else {
-                if (frame == 2)
-                    pezPrintString("Vertical took %d passes\n", pass);
-                break;
-            }
+        if (sampleCount != 0) {
+            continue;
+        }
+
+        // If all pixels were discarded, we're done with this stage of processing:
+        if (!isVertical) {
+            if (frame == 2) pezPrintString("Horizontal took %d passes\n", pass);
+            isVertical = true;
+            pass = 0;
+            glUniform2f(u("Offset"), 0, 1.0f / PezGetConfig().Height);
+        } else {
+            if (frame == 2) pezPrintString("Vertical took %d passes\n", pass);
+            break;
         }
     }
 
