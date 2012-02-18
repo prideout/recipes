@@ -32,7 +32,9 @@ struct {
     GLuint SpriteProgram;
     GLuint QuadVao;
     GLuint SinglePointVao;
-    GLuint OffscreenFbo, ColorTexture, DistanceTexture;
+    GLuint OffscreenFbo;
+    GLuint ColorTexture;
+    GLuint DistanceTexture[2]; // ping-pong
     MeshPod TrefoilKnot;
     TransformsPod Transforms;
 } Globals;
@@ -148,7 +150,7 @@ void PezRender()
     glBindVertexArray(Globals.QuadVao);
 
     if (Globals.IsDragging) {
-        glBindTexture(GL_TEXTURE_2D, Globals.DistanceTexture);
+        glBindTexture(GL_TEXTURE_2D, Globals.DistanceTexture[0]);
         glUniform1f(u("Scale"), 1.0f / PezGetConfig().Width);
     } else {
         glBindTexture(GL_TEXTURE_2D, Globals.ColorTexture);
@@ -298,7 +300,6 @@ static void ModifySinglePoint(GLuint vao, Vector3 v)
 static GLuint CreateRenderTarget()
 {
     GLuint* colorTexture = &Globals.ColorTexture;
-    GLuint* distanceTexture = &Globals.DistanceTexture;
 
     pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
     PezConfig cfg = PezGetConfig();
@@ -312,21 +313,27 @@ static GLuint CreateRenderTarget()
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cfg.Width, cfg.Height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
     pezCheck(GL_NO_ERROR == glGetError(), "Unable to create color texture.");
 
-    glGenTextures(1, distanceTexture);
-    glBindTexture(GL_TEXTURE_2D, *distanceTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_R16UI, cfg.Width, cfg.Height, 0, GL_RED_INTEGER, GL_UNSIGNED_SHORT, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, cfg.Width, cfg.Height, 0, GL_RGB, GL_FLOAT, 0);
-    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create distance texture.");
+    
+    GLuint* distanceTexture = &Globals.DistanceTexture[0];
+    for (int i = 0; i < 2; i++) {
+        glGenTextures(1, distanceTexture);
+        glBindTexture(GL_TEXTURE_2D, *distanceTexture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, cfg.Width, cfg.Height, 0, GL_RGB, GL_FLOAT, 0);
+        pezCheck(GL_NO_ERROR == glGetError(), "Unable to create distance texture.");
+        ++distanceTexture;
+    }
+    distanceTexture = &Globals.DistanceTexture[0];
 
     GLuint fboHandle;
     glGenFramebuffers(1, &fboHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *colorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, *distanceTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, distanceTexture[0], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, distanceTexture[1], 0);
 
     GLuint depthBuffer;
     glGenRenderbuffers(1, &depthBuffer);
