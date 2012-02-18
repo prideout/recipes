@@ -27,6 +27,7 @@ struct {
     bool IsDragging;
     float Theta;
     Vector3 Mouse;
+    GLuint QueryObject;
     GLuint LitProgram;
     GLuint QuadProgram;
     GLuint SpriteProgram;
@@ -35,7 +36,9 @@ struct {
     GLuint SinglePointVao;
     GLuint OffscreenFbo;
     GLuint ColorTexture;
-    GLuint DistanceTexture[2]; // ping-pong
+    GLenum ColorAttachment;
+    GLenum DistanceAttachments[2]; // ping-pong
+    GLuint DistanceTextures[2]; // ping-pong
     MeshPod TrefoilKnot;
     TransformsPod Transforms;
 } Globals;
@@ -95,6 +98,7 @@ void PezInitialize()
     Globals.OffscreenFbo = CreateRenderTarget();
 
     // Misc Initialization
+    glGenQueries(1, &Globals.QueryObject);
     Globals.IsDragging = false;
     Globals.Theta = 0;
     Globals.Mouse.z = -1;
@@ -119,6 +123,16 @@ void PezUpdate(float seconds)
         Globals.Transforms.PackedNormal[i] = M3GetElem(Globals.Transforms.Normal, i/3, i%3);
 }
 
+static void _SwapPingPong()
+{
+    GLenum t0 = Globals.DistanceAttachments[1];
+    Globals.DistanceAttachments[1] = Globals.DistanceAttachments[0];
+    Globals.DistanceAttachments[0] = t0;
+    GLuint t1 = Globals.DistanceTextures[1];
+    Globals.DistanceTextures[1] = Globals.DistanceTextures[0];
+    Globals.DistanceTextures[0] = t1;
+}
+
 void PezRender()
 {
     float* pModel = (float*) &Globals.Transforms.Model;
@@ -128,13 +142,14 @@ void PezRender()
     float* pNormalMatrix = &Globals.Transforms.PackedNormal[0];
     MeshPod* mesh = &Globals.TrefoilKnot;
 
+    GLenum bufs[2];
+    bufs[f("FragColor")] = Globals.ColorAttachment;
+    bufs[f("DistanceMap")] = Globals.DistanceAttachments[0];
+
+    // Create the seed texture and perform lighting simultaneously:
     glBindFramebuffer(GL_FRAMEBUFFER, Globals.OffscreenFbo);
     glUseProgram(Globals.LitProgram);
-
-    GLenum bufs[] = { GL_COLOR_ATTACHMENT0 + f("FragColor"),
-                      GL_COLOR_ATTACHMENT0 + f("DistanceMap") };
     glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
-
     glBindVertexArray(mesh->Vao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
@@ -145,6 +160,54 @@ void PezRender()
     glEnable(GL_DEPTH_TEST);
     glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
 
+    // Perform erosion; first horizontal, than vertical:
+    glUseProgram(Globals.ErodeProgram);
+    glBindVertexArray(Globals.QuadVao);
+    glUniform2f(u("Offset"), 1.0f / PezGetConfig().Width, 0);
+    bool isVertical = false;
+    const int MaxPassCount = 512;
+    for (int pass = 0; pass < MaxPassCount; ++pass) {
+        
+        // Swap the source & destination surfaces and bind them:
+        _SwapPingPong();
+        bufs[f("DistanceMap")] = Globals.DistanceAttachments[0];
+        glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
+        glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
+        /*
+        // Copy the entire source image to the destination surface:
+        glUseProgram(Globals.QuadProgram);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        
+        // Execute the erosion shader and measure how many pixels were written:
+        glUseProgram(Globals.ErodeProgram);
+        glUniform1f(u("Beta"), (GLfloat) pass * 2 + 1);
+        glBeginQuery(GL_SAMPLES_PASSED, QueryObject);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+        glEndQuery(GL_SAMPLES_PASSED);
+        
+        // If all pixels were discarded, we're done with this stage of processing:
+        GLuint sampleCount = 0;
+        glGetQueryObjectuiv(QueryObject, GL_QUERY_RESULT, &sampleCount);
+        if (sampleCount == 0) {
+            if (!isVertical) {
+                if (frame == 2)
+                    pezPrintString("Horizontal took %d passes\n", pass);
+                isVertical = true;
+                pass = 0;
+                glUniform2f(Uniforms.Offset, 0, 1.0f / PezGetConfig().Height);
+            } else {
+                if (frame == 2)
+                    pezPrintString("Vertical took %d passes\n", pass);
+                break;
+            }
+        }
+        */
+    }
+
+    glBindTexture(GL_TEXTURE_2D);
+
+    // Draw the backbuffer
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDrawBuffer(GL_BACK);
 
@@ -152,7 +215,7 @@ void PezRender()
     glBindVertexArray(Globals.QuadVao);
 
     if (Globals.IsDragging) {
-        glBindTexture(GL_TEXTURE_2D, Globals.DistanceTexture[0]);
+        glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
         glUniform1f(u("Scale"), 1.0f / PezGetConfig().Width);
     } else {
         glBindTexture(GL_TEXTURE_2D, Globals.ColorTexture);
@@ -316,7 +379,7 @@ static GLuint CreateRenderTarget()
     pezCheck(GL_NO_ERROR == glGetError(), "Unable to create color texture.");
 
     
-    GLuint* distanceTexture = &Globals.DistanceTexture[0];
+    GLuint* distanceTexture = &Globals.DistanceTextures[0];
     for (int i = 0; i < 2; i++) {
         glGenTextures(1, distanceTexture);
         glBindTexture(GL_TEXTURE_2D, *distanceTexture);
@@ -328,14 +391,18 @@ static GLuint CreateRenderTarget()
         pezCheck(GL_NO_ERROR == glGetError(), "Unable to create distance texture.");
         ++distanceTexture;
     }
-    distanceTexture = &Globals.DistanceTexture[0];
+    distanceTexture = &Globals.DistanceTextures[0];
+
+    Globals.ColorAttachment         = GL_COLOR_ATTACHMENT0; 
+    Globals.DistanceAttachments[0]  = GL_COLOR_ATTACHMENT1;
+    Globals.DistanceAttachments[1]  = GL_COLOR_ATTACHMENT2;
 
     GLuint fboHandle;
     glGenFramebuffers(1, &fboHandle);
     glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *colorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, distanceTexture[0], 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, distanceTexture[1], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, Globals.ColorAttachment,        GL_TEXTURE_2D, *colorTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, Globals.DistanceAttachments[0], GL_TEXTURE_2D, distanceTexture[0], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, Globals.DistanceAttachments[1], GL_TEXTURE_2D, distanceTexture[1], 0);
 
     GLuint depthBuffer;
     glGenRenderbuffers(1, &depthBuffer);
