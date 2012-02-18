@@ -51,10 +51,10 @@ void main()
     if (e.x <= w.x && w.x <= A.x) x = e4.x;
 
     float y = w.y;
-    if (A.y <= e.y && e.y <= w.y) x = A4.y;
-    if (A.y <= w.y && w.y <= e.y) x = A4.y;
-    if (e.y <= A.y && A.y <= w.y) x = e4.y;
-    if (e.y <= w.y && w.y <= A.y) x = e4.y;
+    if (A.y <= e.y && e.y <= w.y) y = A4.y;
+    if (A.y <= w.y && w.y <= e.y) y = A4.y;
+    if (e.y <= A.y && A.y <= w.y) y = e4.y;
+    if (e.y <= w.y && w.y <= A.y) y = e4.y;
 
     DistanceMap = vec4(x, y, B);
 }
