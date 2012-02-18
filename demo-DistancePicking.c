@@ -83,7 +83,7 @@ void PezInitialize()
 
     // Create geometry
     Globals.SinglePointVao = CreateSinglePoint();
-    Globals.QuadVao = CreateQuad(cfg.Width, cfg.Height, cfg.Width, cfg.Height);
+    Globals.QuadVao = CreateQuad(cfg.Width, -cfg.Height, cfg.Width, cfg.Height);
 
     glUseProgram(Globals.LitProgram);
     Globals.TrefoilKnot = CreateTrefoil();
@@ -123,6 +123,7 @@ void PezRender()
     float* pNormalMatrix = &Globals.Transforms.PackedNormal[0];
     MeshPod* mesh = &Globals.TrefoilKnot;
 
+    glBindFramebuffer(GL_FRAMEBUFFER, Globals.OffscreenFbo);
     glUseProgram(Globals.LitProgram);
     glBindVertexArray(mesh->Vao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
@@ -133,6 +134,14 @@ void PezRender()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glUseProgram(Globals.QuadProgram);
+    glBindVertexArray(Globals.QuadVao);
+    glBindTexture(GL_TEXTURE_2D, Globals.ColorTexture);
+    glDisable(GL_DEPTH_TEST);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     // Leave early if we don't have a valid mouse position yet
     if (Globals.Mouse.z < 0) {
