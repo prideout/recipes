@@ -75,6 +75,7 @@ PezConfig PezGetConfig()
 void PezInitialize()
 {
     const PezConfig cfg = PezGetConfig();
+    pezSwAddDirective("*", "#extension GL_ARB_explicit_attrib_location : enable");
 
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
@@ -92,7 +93,6 @@ void PezInitialize()
     // Create geometry
     Globals.SinglePointVao = CreateSinglePoint();
     Globals.QuadVao = CreateQuad(cfg.Width, -cfg.Height, cfg.Width, cfg.Height);
-
     glUseProgram(Globals.LitProgram);
     Globals.TrefoilKnot = CreateTrefoil();
     Globals.OffscreenFbo = CreateRenderTarget();
@@ -135,6 +135,8 @@ static void _SwapPingPong()
 
 void PezRender()
 {
+    static int frame = 0; frame++;
+
     float* pModel = (float*) &Globals.Transforms.Model;
     float* pView = (float*) &Globals.Transforms.View;
     float* pModelview = (float*) &Globals.Transforms.Modelview;
@@ -171,40 +173,47 @@ void PezRender()
         // Swap the source & destination surfaces and bind them:
         _SwapPingPong();
         bufs[f("DistanceMap")] = Globals.DistanceAttachments[0];
-        glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
+        bufs[0] = GL_NONE;
         glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
-        /*
+        glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
+        pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
+
         // Copy the entire source image to the destination surface:
         glUseProgram(Globals.QuadProgram);
-        glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-        
+        bufs[f("FragColor")] = Globals.DistanceAttachments[0];
+        bufs[1] = GL_NONE; // need an encapsulation for this horrible API ---------------------------------- !!!!!!
+        glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
         // Execute the erosion shader and measure how many pixels were written:
         glUseProgram(Globals.ErodeProgram);
+        bufs[f("DistanceMap")] = Globals.DistanceAttachments[0];
+        bufs[0] = GL_NONE;
+        glDrawBuffers(sizeof(bufs) / sizeof(bufs[0]), &bufs[0]);
         glUniform1f(u("Beta"), (GLfloat) pass * 2 + 1);
-        glBeginQuery(GL_SAMPLES_PASSED, QueryObject);
+        glBeginQuery(GL_SAMPLES_PASSED, Globals.QueryObject);
         glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
         glEndQuery(GL_SAMPLES_PASSED);
-        
+
         // If all pixels were discarded, we're done with this stage of processing:
         GLuint sampleCount = 0;
-        glGetQueryObjectuiv(QueryObject, GL_QUERY_RESULT, &sampleCount);
+        glGetQueryObjectuiv(Globals.QueryObject, GL_QUERY_RESULT, &sampleCount);
         if (sampleCount == 0) {
             if (!isVertical) {
                 if (frame == 2)
                     pezPrintString("Horizontal took %d passes\n", pass);
                 isVertical = true;
                 pass = 0;
-                glUniform2f(Uniforms.Offset, 0, 1.0f / PezGetConfig().Height);
+                glUniform2f(u("Offset"), 0, 1.0f / PezGetConfig().Height);
             } else {
                 if (frame == 2)
                     pezPrintString("Vertical took %d passes\n", pass);
                 break;
             }
         }
-        */
     }
 
-    glBindTexture(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     // Draw the backbuffer
 

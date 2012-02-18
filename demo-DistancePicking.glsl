@@ -13,7 +13,7 @@ void main()
 -- Quad.FS
 
 in vec2 vTexCoord;
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
 uniform sampler2D Sampler;
 uniform float Scale;
 
@@ -24,8 +24,10 @@ void main()
 
 -- Erode.FS
 
+layout(location = 1) out vec4 DistanceMap;
+
 in vec2 vTexCoord;
-out vec4 DistanceMap;
+
 uniform sampler2D Sampler;
 uniform float Beta;
 uniform vec2 Offset;
@@ -101,8 +103,9 @@ void main()
 -- Lit.FS
 
 in vec3 vNormal;
-out vec4 FragColor;
-out vec4 DistanceMap;
+
+layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 DistanceMap;
 
 uniform vec3 LightPosition = vec3(0.25, 0.25, 1.0);
 uniform vec3 AmbientMaterial = vec3(0.04, 0.04, 0.04);
