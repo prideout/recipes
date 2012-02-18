@@ -67,8 +67,8 @@ PezConfig PezGetConfig()
 
 void PezInitialize()
 {
-    const float ViewHeight = 5.0f;
-    const float ViewNear = 65, ViewFar = 90;
+    //    const float ViewHeight = 5.0f;
+    //    const float ViewNear = 65, ViewFar = 90;
     const PezConfig cfg = PezGetConfig();
 
     // Compile shaders
@@ -77,10 +77,12 @@ void PezInitialize()
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
 
     // Set up viewport
-    const float w = ViewHeight * cfg.Width / cfg.Height;
-    Globals.Transforms.Projection = M4MakeFrustum(-w, w,
-                                                  -ViewHeight, ViewHeight,
-                                                  ViewNear, ViewFar);
+    //    const float w = ViewHeight * cfg.Width / cfg.Height;
+
+    float fovy = 40 * 180 / TwoPi;
+    float aspect = (float) cfg.Width / cfg.Height;
+    float zNear = 0.1, zFar = 3;
+    Globals.Transforms.Projection = M4MakePerspective(fovy, aspect, zNear, zFar);
     Globals.Transforms.Ortho = M4MakeOrthographic(0, cfg.Width, cfg.Height, 0, 0, 1);
 
     // Create geometry
@@ -107,7 +109,7 @@ void PezUpdate(float seconds)
     
     // Create the model-view matrix:
     Globals.Transforms.Model = M4MakeRotationZ(Globals.Theta);
-    Point3 eye = P3MakeFromElems(0, -75, 25);
+    Point3 eye = P3MakeFromElems(0, 0, 2);
     Point3 target = P3MakeFromElems(0, 0, 0);
     Vector3 up = V3MakeFromElems(0, 1, 0);
     Globals.Transforms.View = M4MakeLookAt(eye, target, up);
@@ -464,8 +466,8 @@ static MeshPod CreateTrefoil()
     mesh.VertexCount = VertexCount;
     mesh.IndexCount = IndexCount;
 
-    glVertexAttribPointer(a("Position"), 3, GL_FLOAT, GL_FALSE, 12, 0);
-    glVertexAttribPointer(a("Normal"), 3, GL_FLOAT, GL_FALSE, 12, offset(12));
+    glVertexAttribPointer(a("Position"), 3, GL_FLOAT, GL_FALSE, 24, 0);
+    glVertexAttribPointer(a("Normal"), 3, GL_FLOAT, GL_FALSE, 24, offset(12));
     glEnableVertexAttribArray(a("Position"));
     glEnableVertexAttribArray(a("Normal"));
 

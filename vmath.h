@@ -51,13 +51,7 @@ typedef struct _VmathVector3
     float x;
     float y;
     float z;
-#ifndef __GNUC__
-    float d;
-#endif
 }
-#ifdef __GNUC__
-__attribute__ ((aligned(16)))
-#endif
 VmathVector3;
 
 /* A 4-D vector in array-of-structures format
@@ -69,9 +63,6 @@ typedef struct _VmathVector4
     float z;
     float w;
 }
-#ifdef __GNUC__
-__attribute__ ((aligned(16)))
-#endif
 VmathVector4;
 
 /* A 3-D point in array-of-structures format
@@ -81,13 +72,7 @@ typedef struct _VmathPoint3
     float x;
     float y;
     float z;
-#ifndef __GNUC__
-    float d;
-#endif
 }
-#ifdef __GNUC__
-__attribute__ ((aligned(16)))
-#endif
 VmathPoint3;
 
 /* A quaternion in array-of-structures format
@@ -99,9 +84,6 @@ typedef struct _VmathQuat
     float z;
     float w;
 }
-#ifdef __GNUC__
-__attribute__ ((aligned(16)))
-#endif
 VmathQuat;
 
 /* A 3x3 matrix in array-of-structures format
