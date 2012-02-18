@@ -34,7 +34,6 @@ struct {
     GLuint SpriteProgram;
     GLuint ErodeProgram;
     GLuint QuadVao;
-    GLuint SinglePointVao;
     GLuint OffscreenFbo;
     GLuint ColorTexture;
     GLenum ColorAttachment;
@@ -51,7 +50,6 @@ typedef struct {
 
 static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
 static GLuint CurrentProgram();
-static GLuint CreateSinglePoint();
 static MeshPod CreateTrefoil();
 static GLuint CreateRenderTarget();
 static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
@@ -94,7 +92,6 @@ void PezInitialize()
     Globals.Transforms.Ortho = M4MakeOrthographic(0, cfg.Width, cfg.Height, 0, 0, 1);
 
     // Create geometry
-    Globals.SinglePointVao = CreateSinglePoint();
     Globals.QuadVao = CreateQuad(cfg.Width, -cfg.Height, cfg.Width, cfg.Height);
     glUseProgram(Globals.LitProgram);
     Globals.TrefoilKnot = CreateTrefoil();
@@ -231,7 +228,7 @@ void PezRender()
     glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
     glDisable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
-    glBindVertexArray(Globals.SinglePointVao);
+    //    glBindVertexArray(Globals.SinglePointVao);
     glDrawArrays(GL_POINTS, 0, 1);
     glDisable(GL_BLEND);
 }
