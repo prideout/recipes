@@ -205,7 +205,7 @@ static Vector3 EvaluateTrefoil(float s, float t)
 
 static MeshPod CreateTrefoil()
 {
-    const int Slices = 128;
+    const int Slices = 256;
     const int Stacks = 32;
     const int VertexCount = Slices * Stacks;
     const int IndexCount = VertexCount * 6;
