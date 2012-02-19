@@ -129,19 +129,7 @@ uniform float Height;
 
 void main()
 {
-    vec2 offsets[5];
-    offsets[0] = vec2(0, 0);
-    offsets[1] = vec2(1, 0);
-    offsets[2] = vec2(-1, 0);
-    offsets[3] = vec2(0, 1);
-    offsets[4] = vec2(0, -1);
-
-    vec2 distance = vec2(0, 0);
-    for (int i = 0; i < 5; i++) {
-        distance += texture(Sampler, 2.0 * offsets[i] * InverseViewport + MouseLocation * InverseViewport).xy;
-    }
-    distance /= 5.0;
-
+    vec2 distance = texture(Sampler, MouseLocation * InverseViewport).xy;
     vPosition = vec3(distance, 0);
     vPosition.y = Height - vPosition.y;
     gl_Position = Projection * Modelview * vec4(vPosition, 1);
