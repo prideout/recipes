@@ -22,6 +22,33 @@ void main()
     FragColor = vec4(Scale, 1) * texture(Sampler, vTexCoord);
 }
 
+-- Soft.FS
+
+in vec2 vTexCoord;
+layout(location = 0) out vec4 FragColor;
+uniform sampler2D ColorTexture;
+uniform sampler2D DistanceTexture;
+uniform vec2 InverseViewport;
+
+void main()
+{
+    FragColor = texture(ColorTexture, vTexCoord);
+
+    // White silhouette:
+    float D = texture(DistanceTexture, vTexCoord).z;
+    if (D != 0) {
+        D /= 15.0;
+        D = clamp(1 - D, 0, 1);
+        vec3 L = vec3(1,1,1);
+        vec3 C = L*D + vec3(0,0.25,0.5);
+        FragColor = vec4(C, 1);
+    }
+
+    // Vignette dimming:
+    float d = distance(vTexCoord, vec2(0.5,0.5));
+    FragColor *= 1-0.75*d;
+}
+
 -- Erode.FS
 
 layout(location = 1) out vec3 DistanceMap;
@@ -44,8 +71,6 @@ void main()
     float B = min(min(A, e), w);
 
     if (A == B) {
-        //DistanceMap = A3;
-        //return;
         discard;
     }
 

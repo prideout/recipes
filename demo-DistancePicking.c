@@ -31,6 +31,7 @@ struct {
     GLuint QueryObject;
     GLuint LitProgram;
     GLuint QuadProgram;
+    GLuint SoftProgram;
     GLuint SpriteProgram;
     GLuint ErodeProgram;
     GLuint QuadVao;
@@ -80,6 +81,7 @@ void PezInitialize()
 
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
+    Globals.SoftProgram = LoadProgram("Quad.VS", 0, "Soft.FS");
     Globals.SpriteProgram = LoadProgram("Sprite.VS", "Sprite.GS", "Sprite.FS");
     Globals.ErodeProgram = LoadProgram("Quad.VS", 0, "Erode.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
@@ -197,20 +199,31 @@ void PezRender()
     // Draw the backbuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDrawBuffer(GL_BACK);
-    glUseProgram(Globals.QuadProgram);
-    glBindVertexArray(Globals.QuadVao);
+    glDisable(GL_DEPTH_TEST);
     if (Globals.IsDragging) {
+        glUseProgram(Globals.QuadProgram);
+        glBindVertexArray(Globals.QuadVao);
         glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
         glUniform3f(u("Scale"),
                     1.0f / PezGetConfig().Width,
                     1.0f / PezGetConfig().Width,
                     1.0f / 100.0f );
     } else {
+        glUseProgram(Globals.SoftProgram);
+        glBindVertexArray(Globals.QuadVao);
+        glUniform2f(u("InverseViewport"), 1.0f / w, 1.0f / h);
+        glUniform1i(u("ColorTexture"), 0);
+        glUniform1i(u("DistanceTexture"), 1);
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, Globals.ColorTexture);
-        glUniform3f(u("Scale"), 1.0f, 1.0f, 1.0f);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, Globals.DistanceTextures[0]);
     }
-    glDisable(GL_DEPTH_TEST);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // Leave early if we don't have a valid mouse position yet
