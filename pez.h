@@ -11,6 +11,7 @@ extern "C" {
 #define PEZ_DROP_HANDLER 1
 
 #include "glew.h"
+#include <stdbool.h>
 
 #define PEZ_FORWARD_COMPATIBLE_GL 1
 
@@ -19,8 +20,8 @@ typedef struct PezConfigRec
     const char* Title;
     int Width;
     int Height;
-    int Multisampling;
-    int VerticalSync;
+    bool Multisampling;
+    bool VerticalSync;
 } PezConfig;
 
 #ifdef PEZ_MAINLOOP

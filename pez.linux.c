@@ -125,9 +125,7 @@ int main(int argc, char** argv)
 
     PFNGLXSWAPINTERVALSGIPROC glXSwapIntervalSGI = (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddress((GLubyte*)"glXSwapIntervalSGI");
     if (glXSwapIntervalSGI) {
-        if (!PezGetConfig().VerticalSync) {
-            glXSwapIntervalSGI(0);
-        }
+        glXSwapIntervalSGI(PezGetConfig().VerticalSync ? 1 : 0);
     }
 
     GLXContext glcontext;
