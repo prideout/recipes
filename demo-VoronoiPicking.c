@@ -88,9 +88,9 @@ void PezUpdate(float seconds)
     
     // Create the model-view matrix:
     Globals.ModelMatrix = M4MakeRotationZ(Globals.Theta);
-    Point3 eye = P3MakeFromElems(0, -75, 25);
-    Point3 target = P3MakeFromElems(0, 0, 0);
-    Vector3 up = V3MakeFromElems(0, 1, 0);
+    Point3 eye = {0, -75, 25};
+    Point3 target = {0, 0, 0};
+    Vector3 up = {0, 1, 0};
     Globals.ViewMatrix = M4MakeLookAt(eye, target, up);
     Globals.Modelview = M4Mul(Globals.ViewMatrix, Globals.ModelMatrix);
 }
@@ -237,7 +237,7 @@ static GLuint CreateSinglePoint()
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    Vector3 v = V3MakeFromScalar(0);
+    Vector3 v = {0, 0, 0};
     GLsizeiptr size = sizeof(v);
 
     GLuint handle;

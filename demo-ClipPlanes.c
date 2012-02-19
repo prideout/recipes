@@ -109,7 +109,7 @@ void PezInitialize()
     const int Slices = 40, Stacks = 10;
     CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
     Scene.Theta = 0;
-    Scene.ClipPlane = V4MakeFromElems(0, 1, 0, 7);
+    Scene.ClipPlane = (Vector4){0, 1, 0, 7};
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CLIP_DISTANCE0);
@@ -123,9 +123,9 @@ void PezUpdate(float seconds)
     
     // Create the model-view matrix:
     Scene.ModelMatrix = M4MakeRotationZ(Scene.Theta);
-    Point3 eye = P3MakeFromElems(0, -75, 25);
-    Point3 target = P3MakeFromElems(0, 0, 0);
-    Vector3 up = V3MakeFromElems(0, 1, 0);
+    Point3 eye = {0, -75, 25};
+    Point3 target = {0, 0, 0};
+    Vector3 up = {0, 1, 0};
     Scene.ViewMatrix = M4MakeLookAt(eye, target, up);
     Scene.Modelview = M4Mul(Scene.ViewMatrix, Scene.ModelMatrix);
     Scene.NormalMatrix = M4GetUpper3x3(Scene.Modelview);

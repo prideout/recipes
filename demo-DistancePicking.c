@@ -114,9 +114,9 @@ void PezUpdate(float seconds)
     
     // Create the model-view matrix:
     Globals.Transforms.Model = M4MakeRotationY(Globals.Theta);
-    Point3 eye = P3MakeFromElems(0, 0, 4);
-    Point3 target = P3MakeFromElems(0, 0, 0);
-    Vector3 up = V3MakeFromElems(0, 1, 0);
+    Point3 eye = {0, 0, 4};
+    Point3 target = {0, 0, 0};
+    Vector3 up = {0, 1, 0};
     Globals.Transforms.View = M4MakeLookAt(eye, target, up);
     Globals.Transforms.Modelview = M4Mul(Globals.Transforms.View, Globals.Transforms.Model);
     Globals.Transforms.Normal = M4GetUpper3x3(Globals.Transforms.Modelview);
@@ -441,9 +441,9 @@ static Vector3 EvaluateTrefoil(float s, float t)
     dv.z = 1.5f * c * cos(1.5f * u);
 
     Vector3 q = V3Normalize(dv);
-    Vector3 qvn = V3Normalize(V3MakeFromElems(q.y, -q.x, 0));
+    Vector3 qvn = V3Normalize((Vector3){q.y, -q.x, 0});
     Vector3 ww = V3Cross(q, qvn);
-        
+
     Vector3 range;
     range.x = x + d * (qvn.x * cos(v) + ww.x * sin(v));
     range.y = y + d * (qvn.y * cos(v) + ww.y * sin(v));
