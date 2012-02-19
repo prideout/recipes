@@ -44,6 +44,8 @@ void main()
     float B = min(min(A, e), w);
 
     if (A == B) {
+        //DistanceMap = A3;
+        //return;
         discard;
     }
 

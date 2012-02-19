@@ -107,7 +107,7 @@ void PezInitialize()
 
 void PezUpdate(float seconds)
 {
-    const float RadiansPerSecond = 0.5f;
+    const float RadiansPerSecond = 2.0f;
     Globals.Theta += seconds * RadiansPerSecond;
     
     // Create the model-view matrix:
@@ -124,8 +124,6 @@ void PezUpdate(float seconds)
 
 void PezRender()
 {
-    static int frame = 0; frame++;
-
     float* pModel = (float*) &Globals.Transforms.Model;
     float* pView = (float*) &Globals.Transforms.View;
     float* pModelview = (float*) &Globals.Transforms.Modelview;
@@ -139,12 +137,20 @@ void PezRender()
     const float h = PezGetConfig().Height;
     bool isComputingDistance = true;
 
+    Point3 lightPosition = { 0.25, 0.25, 1.0 };
+    bool spinLight = false;
+    if (spinLight) {
+        lightPosition = T3MulP3(T3MakeRotationY(Globals.Theta), lightPosition);
+    }
+
     // Create the seed texture and perform lighting simultaneously:
     glBindFramebuffer(GL_FRAMEBUFFER, Globals.OffscreenFbo);
     glUseProgram(Globals.LitProgram);
     DrawBuffers("FragColor", Globals.ColorAttachment,
                 "DistanceMap", Globals.DistanceAttachments[0]);
     glBindVertexArray(mesh->Vao);
+
+    glUniform3fv(u("LightPosition"), 1, &lightPosition.x);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
     glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
