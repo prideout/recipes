@@ -28,23 +28,29 @@ out vec2 gTexCoord;
 
 void main()
 {
+    /*
     vec4 P = gl_in[0].gl_Position;
     vec4 U = vec4(SpriteSize.x, 0, 0, 0) * InverseViewport.x;
     vec4 V = vec4(0, SpriteSize.y, 0, 0) * InverseViewport.y;
+    */
 
-    gTexCoord = vec2(float(vCharacter[0]), 0);
+    vec4 P = vec4(0, 0, 0, 1);
+    vec4 U = vec4(1, 0, 0, 0);
+    vec4 V = vec4(0, 0.5, 0, 0);
+
+    gTexCoord = vec2(float(vCharacter[0]) * 0.0000000000001, 1);
     gl_Position = P - U - V;
     EmitVertex();
 
-    gTexCoord = vec2(1, 0);
+    gTexCoord = vec2(1, 1);
     gl_Position = P + U - V;
     EmitVertex();
 
-    gTexCoord = vec2(0, 1);
+    gTexCoord = vec2(0, 0);
     gl_Position = P - U + V;
     EmitVertex();
 
-    gTexCoord = vec2(1, 1);
+    gTexCoord = vec2(1, 0);
     gl_Position = P + U + V;
     EmitVertex();
 
@@ -61,7 +67,10 @@ uniform sampler2D Sampler;
 
 void main()
 {
-    FragColor = texture(Sampler, gTexCoord);
+    float L = texture(Sampler, gTexCoord).r - 0.5;
+    L = clamp(8*L, 0, 1);
+    vec3 C = vec3(0);
+    FragColor = vec4(C, 1-L);
 }
 
 ----------------------------------------------------------------

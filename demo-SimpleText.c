@@ -99,6 +99,7 @@ void PezInitialize()
     // Misc Initialization
     Globals.Theta = 0;
     glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     pezCheck(OpenGLError);
 }
 
@@ -129,6 +130,9 @@ void PezRender()
     float* pNormalMatrix = &Globals.Transforms.PackedNormal[0];
     MeshPod* mesh = &Globals.TrefoilKnot;
 
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+
     glUseProgram(Globals.LitProgram);
     glBindVertexArray(mesh->Vao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
@@ -136,10 +140,18 @@ void PezRender()
     glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
     glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
-    pezCheck(GL_NO_ERROR == glGetError(), "OpenGL Error Line %d ", __LINE__);
+    pezCheck(OpenGLError);
+
+    glUseProgram(Globals.TextProgram);
+    glEnable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
+    glBindTexture(GL_TEXTURE_2D, Globals.FontMap);
+    glDrawArrays(GL_POINTS, 0, 1); // strlen(Globals.Message));
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDisable(GL_BLEND);
+
+    pezCheck(OpenGLError);
 }
 
 void PezHandleMouse(int x, int y, int action)
@@ -327,22 +339,27 @@ static GLuint LoadTexture(const char* filename)
     LodePNG_Decoder_init(&decoder);
     LodePNG_Decoder_decode(&decoder, &image, &imagesize, buffer, buffersize);
     pezCheck(!decoder.error, "error %u: %s\n", decoder.error, LodePNG_error_text(decoder.error));
-    free(buffer);
     int bpp = LodePNG_InfoColor_getBpp(&decoder.infoPng.color);
     int bitDepth = decoder.infoPng.color.bitDepth;
     int colorChannels = LodePNG_InfoColor_getChannels(&decoder.infoPng.color);
     pezCheck(bpp == 8 && bitDepth == 8 && colorChannels == 1);
     int w = decoder.infoPng.width;
     int h = decoder.infoPng.height;
+    pezPrintString("Loaded %s (%d x %d) bufferSize = %d, imageSize = %d\n", filename, w, h, buffersize, imagesize);
 
     GLuint handle;
     glGenTextures(1, &handle);
     glBindTexture(GL_TEXTURE_2D, handle);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+
+    free(buffer);
     free(image);
     LodePNG_Decoder_cleanup(&decoder);
 
@@ -458,7 +475,6 @@ static GLuint CreateText(const char* text)
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, strlen(text), text, GL_STATIC_DRAW);
-    pezPrintString("attrib is %d\n", a("Character"));
     glVertexAttribPointer(a("Character"), 1, GL_UNSIGNED_BYTE, GL_FALSE, 8, 0);
     glEnableVertexAttribArray(a("Character"));
     pezCheck(OpenGLError);
