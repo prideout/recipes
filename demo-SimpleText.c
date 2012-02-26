@@ -453,12 +453,12 @@ static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int d
 static GLuint CreateText(const char* text)
 {
     GLuint vbo, vao;
-    glUseProgram(Globals.TextProgram);
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, strlen(text), text, GL_STATIC_DRAW);
+    pezPrintString("attrib is %d\n", a("Character"));
     glVertexAttribPointer(a("Character"), 1, GL_UNSIGNED_BYTE, GL_FALSE, 8, 0);
     glEnableVertexAttribArray(a("Character"));
     pezCheck(OpenGLError);

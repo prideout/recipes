@@ -1,6 +1,7 @@
 -- Text.VS
 
 in uint Character;
+out uint vCharacter;
 uniform int GlyphWidth = 32;
 
 void main()
@@ -8,6 +9,7 @@ void main()
     vec2 p;
     p.x = float(gl_VertexID) * GlyphWidth;
     p.y = 0;
+    vCharacter = Character;
     gl_Position = vec4(p, 0, 1);
 }
 
@@ -21,7 +23,8 @@ uniform vec2 SpriteSize;
 uniform vec2 HalfViewport;
 uniform vec2 InverseViewport;
 
-out vec2 TexCoord;
+in uint vCharacter[1];
+out vec2 gTexCoord;
 
 void main()
 {
@@ -29,19 +32,19 @@ void main()
     vec4 U = vec4(SpriteSize.x, 0, 0, 0) * InverseViewport.x;
     vec4 V = vec4(0, SpriteSize.y, 0, 0) * InverseViewport.y;
 
-    TexCoord = vec2(0, 0);
+    gTexCoord = vec2(float(vCharacter[0]), 0);
     gl_Position = P - U - V;
     EmitVertex();
 
-    TexCoord = vec2(1, 0);
+    gTexCoord = vec2(1, 0);
     gl_Position = P + U - V;
     EmitVertex();
 
-    TexCoord = vec2(0, 1);
+    gTexCoord = vec2(0, 1);
     gl_Position = P - U + V;
     EmitVertex();
 
-    TexCoord = vec2(1, 1);
+    gTexCoord = vec2(1, 1);
     gl_Position = P + U + V;
     EmitVertex();
 
@@ -51,14 +54,14 @@ void main()
 -- Text.FS
 
 out vec4 FragColor;
-in vec2 TexCoord;
+in vec2 gTexCoord;
 
 uniform vec2 SpriteSize;
 uniform sampler2D Sampler;
 
 void main()
 {
-    FragColor = texture(Sampler, TexCoord);
+    FragColor = texture(Sampler, gTexCoord);
 }
 
 ----------------------------------------------------------------
