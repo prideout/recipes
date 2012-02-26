@@ -29,7 +29,7 @@ float RowCount = 4;
 int GlyphWidth = 29;
 int OffsetFromLeft = 13;
 int GlyphHeight = 52;
-int OffsetFromBottom = 15;
+int OffsetFromBottom = 13;
 ivec2 AtlasSize = ivec2(725, 231);
 
 void main()
