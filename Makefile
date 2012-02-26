@@ -2,18 +2,22 @@ CC=gcc
 CFLAGS=-std=c99 -Wall -c -Wc++-compat -O3
 LIBS=-lX11 -lGL
 DEMOS=\
+	SimpleText \
 	ClipPlanes \
 	VoronoiPicking \
 	DistancePicking \
 	ToonShading \
 
-SHARED=glew.o pez.o bstrlib.o pez.linux.o
+SHARED=glew.o pez.o bstrlib.o pez.linux.o lodepng.o
 PREFIX=demo-
 
-run: DistancePicking
-	./DistancePicking
+run: SimpleText
+	./SimpleText
 
 all: $(DEMOS)
+
+SimpleText: $(PREFIX)SimpleText.o $(PREFIX)SimpleText.glsl $(SHARED)
+	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
 
 VoronoiPicking: $(PREFIX)VoronoiPicking.o $(PREFIX)VoronoiPicking.glsl $(SHARED)
 	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
