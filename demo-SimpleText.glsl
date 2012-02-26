@@ -38,11 +38,13 @@ void main()
     vec4 U = vec4(1, 0, 0, 0);
     vec4 V = vec4(0, 0.5, 0, 0);
 
-    gTexCoord = vec2(float(vCharacter[0]) * 0.0000000000001, 1);
+    float T = 1.0;
+
+    gTexCoord = vec2(float(vCharacter[0]) * 0.0000000000001, T);
     gl_Position = P - U - V;
     EmitVertex();
 
-    gTexCoord = vec2(1, 1);
+    gTexCoord = vec2(T, T);
     gl_Position = P + U - V;
     EmitVertex();
 
@@ -50,27 +52,51 @@ void main()
     gl_Position = P - U + V;
     EmitVertex();
 
-    gTexCoord = vec2(1, 0);
+    gTexCoord = vec2(T, 0);
     gl_Position = P + U + V;
     EmitVertex();
 
     EndPrimitive();
 }
 
--- Text.FS
+-- Text.Smooth.FS
 
 out vec4 FragColor;
 in vec2 gTexCoord;
 
-uniform vec2 SpriteSize;
 uniform sampler2D Sampler;
 
 void main()
 {
-    float L = texture(Sampler, gTexCoord).r - 0.5;
-    L = clamp(8*L, 0, 1);
-    vec3 C = vec3(0);
-    FragColor = vec4(C, 1-L);
+    float D = texture(Sampler, gTexCoord).r;
+    float width = fwidth(D);
+    float T = 0.5;
+    float A = 1.0 - smoothstep(T - width, T + width, D);
+    FragColor = vec4(0, 0, 0, A);
+}
+
+-- Text.Outline.FS
+
+out vec4 FragColor;
+in vec2 gTexCoord;
+
+uniform sampler2D Sampler;
+uniform float Thickness = 0.03;
+
+void main()
+{
+    float D = texture(Sampler, gTexCoord).x;
+    float width = fwidth(D);
+
+    if (D < 0.5 - Thickness) {
+        float A = 1.0 - smoothstep(0.5 - Thickness - width, 0.5 - Thickness, D);
+        FragColor = vec4(A, A, A, 1);
+    } else if (D < 0.5 + Thickness) {
+        FragColor = vec4(0, 0, 0, 1);
+    } else {
+        float A = 1.0 - smoothstep(0.5 + Thickness, 0.5 + Thickness + width, D);
+        FragColor = vec4(0, 0, 0, A);
+    }
 }
 
 ----------------------------------------------------------------

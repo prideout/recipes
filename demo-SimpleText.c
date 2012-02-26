@@ -76,7 +76,7 @@ void PezInitialize()
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
-    Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.FS");
+    Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.Outline.FS");
 
     // Set up viewport
     float fovy = 16 * TwoPi / 180;
@@ -95,6 +95,7 @@ void PezInitialize()
 
     // Load textures
     Globals.FontMap = LoadTexture("FontMap.png");
+    //Globals.FontMap = LoadTexture("Mona-EDT-Small.png");
 
     // Misc Initialization
     Globals.Theta = 0;
@@ -337,6 +338,8 @@ static GLuint LoadTexture(const char* filename)
     LodePNG_Decoder decoder;
     LodePNG_loadFile(&buffer, &buffersize, filename);
     LodePNG_Decoder_init(&decoder);
+    decoder.infoRaw.color.colorType = 0;
+    decoder.infoRaw.color.bitDepth = 8;
     LodePNG_Decoder_decode(&decoder, &image, &imagesize, buffer, buffersize);
     pezCheck(!decoder.error, "error %u: %s\n", decoder.error, LodePNG_error_text(decoder.error));
     int bpp = LodePNG_InfoColor_getBpp(&decoder.infoPng.color);
@@ -354,10 +357,10 @@ static GLuint LoadTexture(const char* filename)
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image);
 
     free(buffer);
     free(image);
