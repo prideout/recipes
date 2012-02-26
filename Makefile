@@ -3,6 +3,7 @@ CFLAGS=-std=c99 -Wall -c -Wc++-compat -O3
 LIBS=-lX11 -lGL
 DEMOS=\
 	SimpleText \
+	TextGrid \
 	ClipPlanes \
 	VoronoiPicking \
 	DistancePicking \
@@ -15,6 +16,9 @@ run: SimpleText
 	./SimpleText
 
 all: $(DEMOS)
+
+TextGrid: $(PREFIX)TextGrid.o $(PREFIX)TextGrid.glsl $(SHARED)
+	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
 
 SimpleText: $(PREFIX)SimpleText.o $(PREFIX)SimpleText.glsl $(SHARED)
 	$(CC) $(PREFIX)$@.o $(SHARED) -o $@ $(LIBS)
