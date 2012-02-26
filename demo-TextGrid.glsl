@@ -99,12 +99,13 @@ void main()
 
     int GlyphWidth = 29;
     int OffsetFromLeft = 11;
+    int GlyphHeight = 52;
+    int OffsetFromBottom = 14;
+
     if (int(gl_FragCoord.x - OffsetFromLeft) % GlyphWidth == 0) {
         FragColor = vec4(0,0,0,1);
     }
 
-    int GlyphHeight = 52;
-    int OffsetFromBottom = 14;
     if (int(gl_FragCoord.y - OffsetFromBottom) % GlyphHeight == 0) {
         FragColor = vec4(0,0,0,1);
     }

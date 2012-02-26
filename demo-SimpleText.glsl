@@ -22,6 +22,15 @@ layout(triangle_strip, max_vertices = 4) out;
 in uint vCharacter[1];
 out vec2 gTexCoord;
 uniform sampler2D Sampler;
+uniform int Letter;
+
+float ColumnCount = 24;
+float RowCount = 4;
+int GlyphWidth = 29;
+int OffsetFromLeft = 13;
+int GlyphHeight = 52;
+int OffsetFromBottom = 15;
+ivec2 AtlasSize = ivec2(725, 231);
 
 void main()
 {
@@ -38,26 +47,21 @@ void main()
     // Letter 'H' is column 16, row 1.
     // Letter 'h' is column 0, row 3.
     // Columns and Rows increase Right-Down.
-    float column = 8;
-    float row = 3;
 
-    float ColumnCount = 24;
-    float RowCount = 4;
+    int letter = Letter - 32;
+    int column = letter % int(ColumnCount);
+    int row = letter / int(ColumnCount);
 
-    ivec2 size = textureSize(Sampler, 0);
+    int s0 = OffsetFromLeft + column * GlyphWidth;
+    int t0 = OffsetFromBottom + row * GlyphHeight;
 
-    ivec2 padding = ivec2(2, 16);
-    vec2 offset = vec2(6, 0);
-    int rowPadding = 2; // not yet used
+    int s1 = s0 + GlyphWidth;
+    int t1 = t0 + GlyphHeight;
 
-    float GlyphWidth = float(size.x - padding.x) / ColumnCount;
-    float GlyphHeight = float(size.y - padding.y) / RowCount;
-
-    float S0 = (offset.x + (column+0) * GlyphWidth) / float(size.x);
-    float S1 = (offset.x + (column+1) * GlyphWidth) / float(size.x);
-    float T0 = (offset.y + (row+0) * GlyphHeight) / float(size.y);
-    float T1 = (offset.y + (row+1) * GlyphHeight) / float(size.y);
-    S0 = 0.0;S1 = 1.0;T0 = 0.0;T1 = 1.0;
+    float S0 = float(s0) / float(AtlasSize.x);
+    float S1 = float(s1) / float(AtlasSize.x);
+    float T0 = float(t0) / float(AtlasSize.y);
+    float T1 = float(t1) / float(AtlasSize.y);
 
     gTexCoord = vec2(S0, T1);
     gl_Position = P - U - V;
@@ -96,18 +100,6 @@ void main()
     float A = 1.0 - smoothstep(T - width, T + width, D);
 
     FragColor = vec4(TextColor, A);
-
-    int GlyphWidth = 29;
-    int OffsetFromLeft = 11;
-    if (int(gl_FragCoord.x - OffsetFromLeft) % GlyphWidth == 0) {
-        FragColor = vec4(0,0,0,1);
-    }
-
-    int GlyphHeight = 52;
-    int OffsetFromBottom = 14;
-    if (int(gl_FragCoord.y - OffsetFromBottom) % GlyphHeight == 0) {
-        FragColor = vec4(0,0,0,1);
-    }
 }
 
 -- Text.Outline.FS

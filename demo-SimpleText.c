@@ -59,8 +59,8 @@ PezConfig PezGetConfig()
 {
     PezConfig config;
     config.Title = __FILE__;
-    config.Width = 725;//853;
-    config.Height = 231;//480;
+    config.Width = 853;
+    config.Height = 480;
     config.Multisampling = true;
     config.VerticalSync = true;
     return config;
@@ -148,7 +148,20 @@ void PezRender()
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glBindTexture(GL_TEXTURE_2D, Globals.FontMap);
+
+    static char c = ' ';
+    glUniform1i(u("Letter"), c);
+
+    static int frame = 0;
+    if (frame++ == 500) {
+        if (++c > '~') {
+            c = ' ';
+        }
+        frame = 0;
+    }
+
     glDrawArrays(GL_POINTS, 0, 1); // strlen(Globals.Message));
+
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
 
