@@ -65,6 +65,8 @@ out vec4 FragColor;
 in vec2 gTexCoord;
 
 uniform sampler2D Sampler;
+//uniform vec3 TextColor = vec3(0.275, 0.510, 0.706); // SteelBlue
+uniform vec3 TextColor = vec3(0.686, 0.933, 0.933); // PaleTurquoise
 
 void main()
 {
@@ -72,7 +74,7 @@ void main()
     float width = fwidth(D);
     float T = 0.5;
     float A = 1.0 - smoothstep(T - width, T + width, D);
-    FragColor = vec4(0, 0, 0, A);
+    FragColor = vec4(TextColor, A);
 }
 
 -- Text.Outline.FS

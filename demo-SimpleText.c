@@ -61,7 +61,7 @@ PezConfig PezGetConfig()
     config.Title = __FILE__;
     config.Width = 853;
     config.Height = 480;
-    config.Multisampling = false;
+    config.Multisampling = true;
     config.VerticalSync = true;
     return config;
 }
@@ -76,7 +76,7 @@ void PezInitialize()
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
-    Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.Outline.FS");
+    Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.Smooth.FS");
 
     // Set up viewport
     float fovy = 16 * TwoPi / 180;
@@ -99,7 +99,7 @@ void PezInitialize()
 
     // Misc Initialization
     Globals.Theta = 0;
-    glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
+    glClearColor(0.184, 0.310, 0.310, 1);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     pezCheck(OpenGLError);
 }
