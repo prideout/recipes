@@ -123,11 +123,6 @@ int main(int argc, char** argv)
         XMoveWindow(context.MainDisplay, context.MainWindow, left, top);
     }
 
-    PFNGLXSWAPINTERVALSGIPROC glXSwapIntervalSGI = (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddress((GLubyte*)"glXSwapIntervalSGI");
-    if (glXSwapIntervalSGI) {
-        glXSwapIntervalSGI(PezGetConfig().VerticalSync ? 1 : 0);
-    }
-
     GLXContext glcontext;
     if (0 && PEZ_FORWARD_COMPATIBLE_GL) {
         GLXContext tempContext = glXCreateContext(context.MainDisplay, visinfo, NULL, True);
@@ -157,6 +152,11 @@ int main(int argc, char** argv)
 
     glXMakeCurrent(context.MainDisplay, context.MainWindow, glcontext);
     
+    PFNGLXSWAPINTERVALSGIPROC glXSwapIntervalSGI = (PFNGLXSWAPINTERVALSGIPROC) glXGetProcAddress((GLubyte*)"glXSwapIntervalSGI");
+    if (glXSwapIntervalSGI) {
+        glXSwapIntervalSGI(PezGetConfig().VerticalSync ? 1 : 0);
+    }
+
     GLenum err = glewInit();
     if (GLEW_OK != err)
         pezFatal("GLEW Error: %s\n", glewGetErrorString(err));

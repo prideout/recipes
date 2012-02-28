@@ -76,7 +76,7 @@ void PezInitialize()
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
-    Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.Smooth.FS");
+    Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.Outline.FS");
 
     // Set up viewport
     float fovy = 16 * TwoPi / 180;
@@ -96,6 +96,30 @@ void PezInitialize()
     // Load textures
     Globals.FontMap = LoadTexture("FontMap.png");
     //Globals.FontMap = LoadTexture("Mona-EDT-Small.png");
+
+    // Load various constants
+    glUseProgram(Globals.TextProgram);
+    glUniform3f(u("TextColor"), 0.686, 0.933, 0.933); // PaleTurquoise
+    Vector4 GlyphBoxes[4 * 24];
+    Vector4* v = &GlyphBoxes[0];
+    for (int row = 0; row < 4; row++) {
+        for (int col = 0; col < 24; col++, v++) {
+            const int GlyphWidth = 29;
+            const int OffsetFromLeft = 12; // 13;
+            const int GlyphHeight = 52;
+            const int OffsetFromBottom = 7; // 7 for row 3; 13 for row 0
+            const Vector3 AtlasSize = {725, 231, 1};
+            int s0 = OffsetFromLeft + col * GlyphWidth;
+            int t0 = OffsetFromBottom + row * GlyphHeight;
+            int s1 = s0 + GlyphWidth;
+            int t1 = t0 + GlyphHeight;
+            v->x = (float)s0 / AtlasSize.x;
+            v->y = (float)t0 / AtlasSize.y;
+            v->z = (float)s1 / AtlasSize.x;
+            v->w = (float)t1 / AtlasSize.y;
+        }
+    }
+    glUniform4fv(u("GlyphBoxes"), 96, &GlyphBoxes[0].x);
 
     // Misc Initialization
     Globals.Theta = 0;
@@ -153,7 +177,7 @@ void PezRender()
     glUniform1i(u("Letter"), c);
 
     static int frame = 0;
-    if (frame++ == 500) {
+    if (frame++ > 20) {
         if (++c > '~') {
             c = ' ';
         }

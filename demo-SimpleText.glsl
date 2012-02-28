@@ -23,45 +23,19 @@ in uint vCharacter[1];
 out vec2 gTexCoord;
 uniform sampler2D Sampler;
 uniform int Letter;
-
-float ColumnCount = 24;
-float RowCount = 4;
-int GlyphWidth = 29;
-int OffsetFromLeft = 13;
-int GlyphHeight = 52;
-int OffsetFromBottom = 13;
-ivec2 AtlasSize = ivec2(725, 231);
+uniform vec4 GlyphBoxes[96];
 
 void main()
 {
-    /*
-    vec4 P = gl_in[0].gl_Position;
-    vec4 U = vec4(SpriteSize.x, 0, 0, 0) * InverseViewport.x;
-    vec4 V = vec4(0, SpriteSize.y, 0, 0) * InverseViewport.y;
-    */
-
     vec4 P = vec4(0, 0, 0, 1);
-    vec4 U = vec4(1, 0, 0, 0);
-    vec4 V = vec4(0, 1, 0, 0);
-
-    // Letter 'H' is column 16, row 1.
-    // Letter 'h' is column 0, row 3.
-    // Columns and Rows increase Right-Down.
+    vec4 U = vec4(0.25, 0, 0, 0);
+    vec4 V = vec4(0, 0.5, 0, 0);
 
     int letter = Letter - 32;
-    int column = letter % int(ColumnCount);
-    int row = letter / int(ColumnCount);
-
-    int s0 = OffsetFromLeft + column * GlyphWidth;
-    int t0 = OffsetFromBottom + row * GlyphHeight;
-
-    int s1 = s0 + GlyphWidth;
-    int t1 = t0 + GlyphHeight;
-
-    float S0 = float(s0) / float(AtlasSize.x);
-    float S1 = float(s1) / float(AtlasSize.x);
-    float T0 = float(t0) / float(AtlasSize.y);
-    float T1 = float(t1) / float(AtlasSize.y);
+    float S0 = GlyphBoxes[letter].x;
+    float T0 = GlyphBoxes[letter].y;
+    float S1 = GlyphBoxes[letter].z;
+    float T1 = GlyphBoxes[letter].w;
 
     gTexCoord = vec2(S0, T1);
     gl_Position = P - U - V;
@@ -89,8 +63,7 @@ out vec4 FragColor;
 in vec2 gTexCoord;
 
 uniform sampler2D Sampler;
-//uniform vec3 TextColor = vec3(0.275, 0.510, 0.706); // SteelBlue
-uniform vec3 TextColor = vec3(0.686, 0.933, 0.933); // PaleTurquoise
+uniform vec3 TextColor;
 
 void main()
 {
@@ -109,6 +82,8 @@ in vec2 gTexCoord;
 
 uniform sampler2D Sampler;
 uniform float Thickness = 0.03;
+uniform vec3 TextColor;
+uniform float BackgroundOpacity = 0.5; // Set to 1.0 for transparent
 
 void main()
 {
@@ -116,14 +91,15 @@ void main()
     float width = fwidth(D);
 
     if (D < 0.5 - Thickness) {
-        float A = 1.0 - smoothstep(0.5 - Thickness - width, 0.5 - Thickness, D);
+        float A = 1 - smoothstep(0.5 - Thickness - width, 0.5 - Thickness, D);
         FragColor = vec4(A, A, A, 1);
     } else if (D < 0.5 + Thickness) {
         FragColor = vec4(0, 0, 0, 1);
     } else {
-        float A = 1.0 - smoothstep(0.5 + Thickness, 0.5 + Thickness + width, D);
+        float A = 1.0 - smoothstep(0.5 + Thickness, 0.5 + Thickness + width, D) * BackgroundOpacity;
         FragColor = vec4(0, 0, 0, A);
     }
+    FragColor.xyz *= TextColor;
 }
 
 ----------------------------------------------------------------
