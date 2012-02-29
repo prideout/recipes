@@ -76,7 +76,7 @@ void PezInitialize()
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
-    Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.Outline.FS");
+    Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.Smooth.FS");
 
     // Set up viewport
     float fovy = 16 * TwoPi / 180;
@@ -95,7 +95,6 @@ void PezInitialize()
 
     // Load textures
     Globals.FontMap = LoadTexture("FontMap.png");
-    //Globals.FontMap = LoadTexture("Mona-EDT-Small.png");
 
     // Load various constants
     glUseProgram(Globals.TextProgram);
@@ -169,10 +168,12 @@ void PezRender()
     pezCheck(OpenGLError);
 
     glUseProgram(Globals.TextProgram);
+    glBindVertexArray(Globals.TextVao);
+
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glBindTexture(GL_TEXTURE_2D, Globals.FontMap);
-
+    /*
     static char c = ' ';
     glUniform1i(u("Letter"), c);
 
@@ -183,8 +184,8 @@ void PezRender()
         }
         frame = 0;
     }
-
-    glDrawArrays(GL_POINTS, 0, 1); // strlen(Globals.Message));
+    */
+    glDrawArrays(GL_POINTS, 0, strlen(Globals.Message));
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_BLEND);
@@ -515,7 +516,7 @@ static GLuint CreateText(const char* text)
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, strlen(text), text, GL_STATIC_DRAW);
-    glVertexAttribPointer(a("Character"), 1, GL_UNSIGNED_BYTE, GL_FALSE, 8, 0);
+    glVertexAttribIPointer(a("Character"), 1, GL_UNSIGNED_BYTE, 1, 0);
     glEnableVertexAttribArray(a("Character"));
     pezCheck(OpenGLError);
     return vao;

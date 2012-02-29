@@ -1,7 +1,8 @@
 -- Text.VS
 
-in uint Character;
-out uint vCharacter;
+in int Character;
+out int vCharacter;
+out int vPosition;
 uniform int GlyphWidth = 32;
 
 void main()
@@ -10,6 +11,7 @@ void main()
     p.x = float(gl_VertexID) * GlyphWidth;
     p.y = 0;
     vCharacter = Character;
+    vPosition = gl_VertexID;
     gl_Position = vec4(p, 0, 1);
 }
 
@@ -19,19 +21,22 @@ void main()
 layout(points) in;
 layout(triangle_strip, max_vertices = 4) out;
 
-in uint vCharacter[1];
+in int vCharacter[1];
+in int vPosition[1];
 out vec2 gTexCoord;
 uniform sampler2D Sampler;
-uniform int Letter;
 uniform vec4 GlyphBoxes[96];
 
 void main()
 {
-    vec4 P = vec4(0, 0, 0, 1);
-    vec4 U = vec4(0.25, 0, 0, 0);
-    vec4 V = vec4(0, 0.5, 0, 0);
+    float x = -1 + float(vPosition[0]) * 8 / 160.0;
 
-    int letter = Letter - 32;
+    vec4 P = vec4(x, 0, 0, 1);
+    vec4 U = vec4(0.125, 0, 0, 0)/4;
+    vec4 V = vec4(0, 0.25, 0, 0)/4;
+
+    int letter = vCharacter[0];
+    letter = clamp(letter - 32, 0, 96);
     float S0 = GlyphBoxes[letter].x;
     float T0 = GlyphBoxes[letter].y;
     float S1 = GlyphBoxes[letter].z;
@@ -51,7 +56,6 @@ void main()
 
     gTexCoord = vec2(S1, T0);
     gl_Position = P + U + V;
-    gl_Position.z += float(vCharacter[0]) * 0.00000000001;
     EmitVertex();
 
     EndPrimitive();
@@ -83,7 +87,7 @@ in vec2 gTexCoord;
 uniform sampler2D Sampler;
 uniform float Thickness = 0.03;
 uniform vec3 TextColor;
-uniform float BackgroundOpacity = 0.5; // Set to 1.0 for transparent
+uniform float BackgroundOpacity = 1.0; // 0.5; // Set to 1.0 for transparent
 
 void main()
 {
