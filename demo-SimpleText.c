@@ -107,15 +107,20 @@ void PezInitialize()
             const int OffsetFromLeft = 12; // 13;
             const int GlyphHeight = 52;
             const int OffsetFromBottom = 7; // 7 for row 3; 13 for row 0
+            v->x = OffsetFromLeft + col * GlyphWidth;
+            v->y = OffsetFromBottom + row * GlyphHeight;
+            v->z = v->x + GlyphWidth;
+            v->w = v->y + GlyphHeight;
+        }
+    }
+    v = &GlyphBoxes[0];
+    for (int row = 0; row < 4; row++) {
+        for (int col = 0; col < 24; col++, v++) {
             const Vector3 AtlasSize = {725, 231, 1};
-            int s0 = OffsetFromLeft + col * GlyphWidth;
-            int t0 = OffsetFromBottom + row * GlyphHeight;
-            int s1 = s0 + GlyphWidth;
-            int t1 = t0 + GlyphHeight;
-            v->x = (float)s0 / AtlasSize.x;
-            v->y = (float)t0 / AtlasSize.y;
-            v->z = (float)s1 / AtlasSize.x;
-            v->w = (float)t1 / AtlasSize.y;
+            v->x /= AtlasSize.x;
+            v->y /= AtlasSize.y;
+            v->z /= AtlasSize.x;
+            v->w /= AtlasSize.y;
         }
     }
     glUniform4fv(u("GlyphBoxes"), 96, &GlyphBoxes[0].x);
