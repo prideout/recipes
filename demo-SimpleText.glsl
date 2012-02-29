@@ -29,10 +29,11 @@ uniform vec4 GlyphBoxes[96];
 
 void main()
 {
-    float x = -1 + float(vPosition[0]) * 8 / 160.0;
+    float x = -0.75 + float(vPosition[0]) * 8 / 160.0;
+    float y = -0.75;
 
-    vec4 P = vec4(x, 0, 0, 1);
-    vec4 U = vec4(0.125, 0, 0, 0)/4;
+    vec4 P = vec4(x, y, 0, 1);
+    vec4 U = vec4(0.1, 0, 0, 0)/4;
     vec4 V = vec4(0, 0.25, 0, 0)/4;
 
     int letter = vCharacter[0];
@@ -87,7 +88,7 @@ in vec2 gTexCoord;
 uniform sampler2D Sampler;
 uniform float Thickness = 0.03;
 uniform vec3 TextColor;
-uniform float BackgroundOpacity = 1.0; // 0.5; // Set to 1.0 for transparent
+uniform float BackgroundOpacity = 0.5; // Set to 1.0 for transparent
 
 void main()
 {

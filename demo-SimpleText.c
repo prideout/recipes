@@ -59,8 +59,8 @@ PezConfig PezGetConfig()
 {
     PezConfig config;
     config.Title = __FILE__;
-    config.Width = 853;
-    config.Height = 480;
+    config.Width = 853*3/2;
+    config.Height = 480*3/2;
     config.Multisampling = true;
     config.VerticalSync = true;
     return config;
@@ -71,7 +71,7 @@ void PezInitialize()
     const PezConfig cfg = PezGetConfig();
     pezSwAddDirective("*", "#extension GL_ARB_explicit_attrib_location : enable");
 
-    strcpy(Globals.Message, "Hello, world.");
+    strcpy(Globals.Message, "The quick brown fox jumped over the lazy dog.");
 
     // Compile shaders
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
