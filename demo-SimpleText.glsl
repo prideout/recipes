@@ -25,23 +25,29 @@ in int vCharacter[1];
 in int vPosition[1];
 out vec2 gTexCoord;
 uniform sampler2D Sampler;
-uniform vec4 GlyphBoxes[96];
+
+uniform vec2 CellSize;
+uniform vec2 RenderSize = vec2(0.75 * 16 / 1280, 0.75 * 33.33 / 720);
+uniform vec2 RenderOrigin = vec2(-0.96, 0.9);
 
 void main()
 {
-    float x = -0.75 + float(vPosition[0]) * 8 / 160.0;
-    float y = -0.75;
+    float x = RenderOrigin.x + float(vPosition[0]) * RenderSize.x * 2;
+    float y = RenderOrigin.y;
 
     vec4 P = vec4(x, y, 0, 1);
-    vec4 U = vec4(0.1, 0, 0, 0)/4;
-    vec4 V = vec4(0, 0.25, 0, 0)/4;
+    vec4 U = vec4(1, 0, 0, 0) * RenderSize.x;
+    vec4 V = vec4(0, 1, 0, 0) * RenderSize.y;
 
     int letter = vCharacter[0];
     letter = clamp(letter - 32, 0, 96);
-    float S0 = GlyphBoxes[letter].x;
-    float T0 = GlyphBoxes[letter].y;
-    float S1 = GlyphBoxes[letter].z;
-    float T1 = GlyphBoxes[letter].w;
+    int row = 7 - letter / 16; // WTF
+    int col = letter % 16;
+
+    float S0 = CellSize.x * col + 0.5/256.0;
+    float T0 = CellSize.y * row - CellSize.y / 3 + 0.5/256.0; // WTF
+    float S1 = S0 + CellSize.x;
+    float T1 = T0 + CellSize.y;
 
     gTexCoord = vec2(S0, T1);
     gl_Position = P - U - V;
@@ -72,65 +78,8 @@ uniform vec3 TextColor;
 
 void main()
 {
-    float D = texture(Sampler, gTexCoord).r;
-    float width = fwidth(D);
-    float T = 0.5;
-    float A = 1.0 - smoothstep(T - width, T + width, D);
-
+    float A = texture(Sampler, gTexCoord).r;
     FragColor = vec4(TextColor, A);
-}
-
--- Text.Outline.FS
-
-out vec4 FragColor;
-in vec2 gTexCoord;
-
-uniform sampler2D Sampler;
-uniform float Thickness = 0.03;
-uniform vec3 TextColor;
-uniform float BackgroundOpacity = 0.5; // Set to 1.0 for transparent
-
-void main()
-{
-    float D = texture(Sampler, gTexCoord).x;
-    float width = fwidth(D);
-
-    if (D < 0.5 - Thickness) {
-        float A = 1 - smoothstep(0.5 - Thickness - width, 0.5 - Thickness, D);
-        FragColor = vec4(A, A, A, 1);
-    } else if (D < 0.5 + Thickness) {
-        FragColor = vec4(0, 0, 0, 1);
-    } else {
-        float A = 1.0 - smoothstep(0.5 + Thickness, 0.5 + Thickness + width, D) * BackgroundOpacity;
-        FragColor = vec4(0, 0, 0, A);
-    }
-    FragColor.xyz *= TextColor;
-}
-
-----------------------------------------------------------------
-
--- Quad.VS
-
-in vec2 Position;
-in vec2 TexCoord;
-out vec2 vTexCoord;
-
-void main()
-{
-    vTexCoord = TexCoord;
-    gl_Position = vec4(Position, 0, 1);
-}
-
--- Quad.FS
-
-in vec2 vTexCoord;
-layout(location = 0) out vec4 FragColor;
-uniform sampler2D Sampler;
-uniform vec3 Scale;
-
-void main()
-{
-    FragColor = vec4(Scale, 1) * texture(Sampler, vTexCoord);
 }
 
 -- Lit.VS

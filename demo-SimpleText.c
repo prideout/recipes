@@ -27,12 +27,9 @@ typedef struct {
 struct {
     float Theta;
     GLuint LitProgram;
-    GLuint QuadProgram;
     GLuint TextProgram;
-    GLuint SinglePointVao;
     MeshPod TrefoilKnot;
     TransformsPod Transforms;
-    GLuint QuadVao;
     GLuint TextVao;
     GLuint FontMap;
     char Message[256];
@@ -47,7 +44,6 @@ static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKe
 static GLuint CurrentProgram();
 static MeshPod CreateTrefoil();
 static GLuint LoadTexture(const char* filename);
-static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
 static GLuint CreateText(const char* text);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
@@ -59,8 +55,8 @@ PezConfig PezGetConfig()
 {
     PezConfig config;
     config.Title = __FILE__;
-    config.Width = 853*3/2;
-    config.Height = 480*3/2;
+    config.Width = 1280;
+    config.Height = 720;
     config.Multisampling = true;
     config.VerticalSync = true;
     return config;
@@ -74,7 +70,6 @@ void PezInitialize()
     strcpy(Globals.Message, "The quick brown fox jumped over the lazy dog.");
 
     // Compile shaders
-    Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
     Globals.TextProgram = LoadProgram("Text.VS", "Text.GS", "Text.Smooth.FS");
 
@@ -86,44 +81,19 @@ void PezInitialize()
     Globals.Transforms.Ortho = M4MakeOrthographic(0, cfg.Width, cfg.Height, 0, 0, 1);
 
     // Create geometry
-    glUseProgram(Globals.QuadProgram);
-    Globals.QuadVao = CreateQuad(cfg.Width, -cfg.Height, cfg.Width, cfg.Height);
     glUseProgram(Globals.TextProgram);
     Globals.TextVao = CreateText(Globals.Message);
     glUseProgram(Globals.LitProgram);
     Globals.TrefoilKnot = CreateTrefoil();
 
     // Load textures
-    Globals.FontMap = LoadTexture("FontMap.png");
+    Globals.FontMap = LoadTexture("verasansmono.png");
 
     // Load various constants
     glUseProgram(Globals.TextProgram);
-    glUniform3f(u("TextColor"), 0.686, 0.933, 0.933); // PaleTurquoise
-    Vector4 GlyphBoxes[4 * 24];
-    Vector4* v = &GlyphBoxes[0];
-    for (int row = 0; row < 4; row++) {
-        for (int col = 0; col < 24; col++, v++) {
-            const int GlyphWidth = 29;
-            const int OffsetFromLeft = 12; // 13;
-            const int GlyphHeight = 52;
-            const int OffsetFromBottom = 7; // 7 for row 3; 13 for row 0
-            v->x = OffsetFromLeft + col * GlyphWidth;
-            v->y = OffsetFromBottom + row * GlyphHeight;
-            v->z = v->x + GlyphWidth;
-            v->w = v->y + GlyphHeight;
-        }
-    }
-    v = &GlyphBoxes[0];
-    for (int row = 0; row < 4; row++) {
-        for (int col = 0; col < 24; col++, v++) {
-            const Vector3 AtlasSize = {725, 231, 1};
-            v->x /= AtlasSize.x;
-            v->y /= AtlasSize.y;
-            v->z /= AtlasSize.x;
-            v->w /= AtlasSize.y;
-        }
-    }
-    glUniform4fv(u("GlyphBoxes"), 96, &GlyphBoxes[0].x);
+    //glUniform3f(u("TextColor"), 0.686, 0.933, 0.933); // PaleTurquoise
+    glUniform3f(u("TextColor"), 1, 1, 1);
+    glUniform2f(u("CellSize"), 1.0f / 16, (300.0f / 384) / 6);
 
     // Misc Initialization
     Globals.Theta = 0;
@@ -178,18 +148,6 @@ void PezRender()
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glBindTexture(GL_TEXTURE_2D, Globals.FontMap);
-    /*
-    static char c = ' ';
-    glUniform1i(u("Letter"), c);
-
-    static int frame = 0;
-    if (frame++ > 20) {
-        if (++c > '~') {
-            c = ' ';
-        }
-        frame = 0;
-    }
-    */
     glDrawArrays(GL_POINTS, 0, strlen(Globals.Message));
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -402,8 +360,7 @@ static GLuint LoadTexture(const char* filename)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image); // I think RED is more modern than LUMINANCE
 
     free(buffer);
     free(image);
@@ -411,106 +368,6 @@ static GLuint LoadTexture(const char* filename)
 
     pezCheck(OpenGLError);
     return handle;
-}
-/*
-static GLuint CreateRenderTarget()
-{
-    GLuint* colorTexture = &Globals.ColorTexture;
-
-    pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
-    PezConfig cfg = PezGetConfig();
-
-    glGenTextures(1, colorTexture);
-    glBindTexture(GL_TEXTURE_2D, *colorTexture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, cfg.Width, cfg.Height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create color texture.");
-
-    GLuint* distanceTexture = &Globals.DistanceTextures[0];
-    for (int i = 0; i < 2; i++) {
-        glGenTextures(1, distanceTexture);
-        glBindTexture(GL_TEXTURE_2D, *distanceTexture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, cfg.Width, cfg.Height, 0, GL_RGB, GL_HALF_FLOAT, 0);
-        pezCheck(GL_NO_ERROR == glGetError(), "Unable to create distance texture.");
-        ++distanceTexture;
-    }
-    distanceTexture = &Globals.DistanceTextures[0];
-
-    Globals.ColorAttachment         = GL_COLOR_ATTACHMENT0; 
-    Globals.DistanceAttachments[0]  = GL_COLOR_ATTACHMENT1;
-    Globals.DistanceAttachments[1]  = GL_COLOR_ATTACHMENT2;
-
-    GLuint fboHandle;
-    glGenFramebuffers(1, &fboHandle);
-    glBindFramebuffer(GL_FRAMEBUFFER, fboHandle);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, Globals.ColorAttachment,        GL_TEXTURE_2D, *colorTexture, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, Globals.DistanceAttachments[0], GL_TEXTURE_2D, distanceTexture[0], 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, Globals.DistanceAttachments[1], GL_TEXTURE_2D, distanceTexture[1], 0);
-
-    GLuint depthBuffer;
-    glGenRenderbuffers(1, &depthBuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, depthBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, cfg.Width, cfg.Height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthBuffer);
-
-    pezCheck(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Invalid FBO.");
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    pezCheck(OpenGLError);
-    return fboHandle;
-}
-*/
-static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight)
-{
-    // Stretch to fit:
-    float q[] = {
-        -1, -1, 0, 1,
-        +1, -1, 1, 1,
-        -1, +1, 0, 0,
-        +1, +1, 1, 0 };
-        
-    if (sourceHeight < 0) {
-        sourceHeight = -sourceHeight;
-        q[3] = 1-q[3];
-        q[7] = 1-q[7];
-        q[11] = 1-q[11];
-        q[15] = 1-q[15];
-    }
-
-    float sourceRatio = (float) sourceWidth / sourceHeight;
-    float destRatio = (float) destWidth  / destHeight;
-    
-    // Horizontal fit:
-    if (sourceRatio > destRatio) {
-        q[1] = q[5] = -destRatio / sourceRatio;
-        q[9] = q[13] = destRatio / sourceRatio;
-
-    // Vertical fit:    
-    } else {
-        q[0] = q[8] = -sourceRatio / destRatio;
-        q[4] = q[12] = sourceRatio / destRatio;
-    }
-
-    GLuint vbo, vao;
-    glUseProgram(Globals.QuadProgram);
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(q), q, GL_STATIC_DRAW);
-    glVertexAttribPointer(a("Position"), 2, GL_FLOAT, GL_FALSE, 16, 0);
-    glVertexAttribPointer(a("TexCoord"), 2, GL_FLOAT, GL_FALSE, 16, offset(8));
-    glEnableVertexAttribArray(a("Position"));
-    glEnableVertexAttribArray(a("TexCoord"));
-    pezCheck(OpenGLError);
-    return vao;
 }
 
 static GLuint CreateText(const char* text)
