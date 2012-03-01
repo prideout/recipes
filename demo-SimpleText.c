@@ -3,6 +3,7 @@
 // http://creativecommons.org/licenses/by/3.0/
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include "pez.h"
 #include "vmath.h"
@@ -16,7 +17,6 @@ typedef struct {
 
 typedef struct {
     Matrix4 Projection;
-    Matrix4 Ortho;
     Matrix4 Modelview;
     Matrix4 View;
     Matrix4 Model;
@@ -30,9 +30,7 @@ struct {
     GLuint TextProgram;
     MeshPod TrefoilKnot;
     TransformsPod Transforms;
-    GLuint TextVao;
     GLuint FontMap;
-    char Message[256];
 } Globals;
 
 typedef struct {
@@ -44,7 +42,6 @@ static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKe
 static GLuint CurrentProgram();
 static MeshPod CreateTrefoil();
 static GLuint LoadTexture(const char* filename);
-static GLuint CreateText(const char* text);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
@@ -55,8 +52,8 @@ PezConfig PezGetConfig()
 {
     PezConfig config;
     config.Title = __FILE__;
-    config.Width = 1280;
-    config.Height = 720;
+    config.Width = 1280/2;
+    config.Height = 720/2;
     config.Multisampling = true;
     config.VerticalSync = true;
     return config;
@@ -65,9 +62,6 @@ PezConfig PezGetConfig()
 void PezInitialize()
 {
     const PezConfig cfg = PezGetConfig();
-    pezSwAddDirective("*", "#extension GL_ARB_explicit_attrib_location : enable");
-
-    strcpy(Globals.Message, "The quick brown fox jumped over the lazy dog.");
 
     // Compile shaders
     Globals.LitProgram = LoadProgram("Lit.VS", 0, "Lit.FS");
@@ -78,11 +72,8 @@ void PezInitialize()
     float aspect = (float) cfg.Width / cfg.Height;
     float zNear = 0.1, zFar = 300;
     Globals.Transforms.Projection = M4MakePerspective(fovy, aspect, zNear, zFar);
-    Globals.Transforms.Ortho = M4MakeOrthographic(0, cfg.Width, cfg.Height, 0, 0, 1);
 
     // Create geometry
-    glUseProgram(Globals.TextProgram);
-    Globals.TextVao = CreateText(Globals.Message);
     glUseProgram(Globals.LitProgram);
     Globals.TrefoilKnot = CreateTrefoil();
 
@@ -106,8 +97,8 @@ void PezInitialize()
 
 void PezUpdate(float seconds)
 {
-    const float RadiansPerSecond = 0.5f;
-    Globals.Theta += seconds * RadiansPerSecond;
+    const float RadiansPerSecond = 1.0f;
+    Globals.Theta = fmod(Globals.Theta + seconds * RadiansPerSecond, TwoPi);
     
     // Create the model-view matrix:
     Globals.Transforms.Model = M4MakeRotationY(Globals.Theta);
@@ -133,6 +124,7 @@ void PezRender()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
 
     glUseProgram(Globals.LitProgram);
     glBindVertexArray(mesh->Vao);
@@ -144,16 +136,21 @@ void PezRender()
     glDrawElements(GL_TRIANGLES, mesh->IndexCount, GL_UNSIGNED_SHORT, 0);
     pezCheck(OpenGLError);
 
-    glUseProgram(Globals.TextProgram);
-    glBindVertexArray(Globals.TextVao);
-
     glEnable(GL_BLEND);
     glDisable(GL_DEPTH_TEST);
     glBindTexture(GL_TEXTURE_2D, Globals.FontMap);
-    glDrawArrays(GL_POINTS, 0, strlen(Globals.Message));
 
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glDisable(GL_BLEND);
+    glUseProgram(Globals.TextProgram);
+    glBindVertexArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glEnableVertexAttribArray(a("Character"));
+
+    char text[64];
+    sprintf(text, "theta = %3.1f", Globals.Theta * 180 / Pi);
+
+    glVertexAttribIPointer(a("Character"), 1, GL_UNSIGNED_BYTE, 1, text);
+    glDrawArrays(GL_POINTS, 0, strlen(text));
+
 
     pezCheck(OpenGLError);
 }
@@ -362,7 +359,7 @@ static GLuint LoadTexture(const char* filename)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, w, h, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, image); // I think RED is more modern than LUMINANCE
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, image);
 
     free(buffer);
     free(image);
@@ -370,18 +367,4 @@ static GLuint LoadTexture(const char* filename)
 
     pezCheck(OpenGLError);
     return handle;
-}
-
-static GLuint CreateText(const char* text)
-{
-    GLuint vbo, vao;
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, strlen(text), text, GL_STATIC_DRAW);
-    glVertexAttribIPointer(a("Character"), 1, GL_UNSIGNED_BYTE, 1, 0);
-    glEnableVertexAttribArray(a("Character"));
-    pezCheck(OpenGLError);
-    return vao;
 }
