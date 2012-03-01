@@ -37,11 +37,11 @@ void main()
 
     int letter = vCharacter[0];
     letter = clamp(letter - 32, 0, 96);
-    int row = 7 - letter / 16; // WTF
+    int row = letter / 16 + 1;
     int col = letter % 16;
 
     float S0 = CellSize.x * col + 0.5/256.0;
-    float T0 = CellSize.y * row - CellSize.y / 3 + 0.5/256.0; // WTF
+    float T0 = 1 - CellSize.y * row + 0.5/256.0;
     float S1 = S0 + CellSize.x;
     float T1 = T0 + CellSize.y;
 
