@@ -3,16 +3,12 @@
 in int Character;
 out int vCharacter;
 out int vPosition;
-uniform int GlyphWidth = 32;
 
 void main()
 {
-    vec2 p;
-    p.x = float(gl_VertexID) * GlyphWidth;
-    p.y = 0;
     vCharacter = Character;
     vPosition = gl_VertexID;
-    gl_Position = vec4(p, 0, 1);
+    gl_Position = vec4(0, 0, 0, 1);
 }
 
 
