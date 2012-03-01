@@ -23,44 +23,34 @@ out vec2 gTexCoord;
 uniform sampler2D Sampler;
 
 uniform vec2 CellSize;
+uniform vec2 CellOffset = vec2(0.5/256.0,0.5/256.0);
 uniform vec2 RenderSize = vec2(0.75 * 16 / 1280, 0.75 * 33.33 / 720);
 uniform vec2 RenderOrigin = vec2(-0.96, 0.9);
 
 void main()
 {
+    // Determine the final quad's position and size:
     float x = RenderOrigin.x + float(vPosition[0]) * RenderSize.x * 2;
     float y = RenderOrigin.y;
-
     vec4 P = vec4(x, y, 0, 1);
     vec4 U = vec4(1, 0, 0, 0) * RenderSize.x;
     vec4 V = vec4(0, 1, 0, 0) * RenderSize.y;
 
+    // Determine the texture coordinates:
     int letter = vCharacter[0];
     letter = clamp(letter - 32, 0, 96);
     int row = letter / 16 + 1;
     int col = letter % 16;
-
-    float S0 = CellSize.x * col + 0.5/256.0;
-    float T0 = 1 - CellSize.y * row + 0.5/256.0;
-    float S1 = S0 + CellSize.x;
+    float S0 = CellOffset.x + CellSize.x * col;
+    float T0 = CellOffset.y + 1 - CellSize.y * row;
+    float S1 = S0 + CellSize.x - CellOffset.x;
     float T1 = T0 + CellSize.y;
 
-    gTexCoord = vec2(S0, T1);
-    gl_Position = P - U - V;
-    EmitVertex();
-
-    gTexCoord = vec2(S1, T1);
-    gl_Position = P + U - V;
-    EmitVertex();
-
-    gTexCoord = vec2(S0, T0);
-    gl_Position = P - U + V;
-    EmitVertex();
-
-    gTexCoord = vec2(S1, T0);
-    gl_Position = P + U + V;
-    EmitVertex();
-
+    // Output the quad's vertices:
+    gTexCoord = vec2(S0, T1); gl_Position = P - U - V; EmitVertex();
+    gTexCoord = vec2(S1, T1); gl_Position = P + U - V; EmitVertex();
+    gTexCoord = vec2(S0, T0); gl_Position = P - U + V; EmitVertex();
+    gTexCoord = vec2(S1, T0); gl_Position = P + U + V; EmitVertex();
     EndPrimitive();
 }
 
