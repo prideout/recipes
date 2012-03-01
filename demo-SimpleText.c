@@ -91,9 +91,11 @@ void PezInitialize()
 
     // Load various constants
     glUseProgram(Globals.TextProgram);
-    //glUniform3f(u("TextColor"), 0.686, 0.933, 0.933); // PaleTurquoise
     glUniform3f(u("TextColor"), 1, 1, 1);
     glUniform2f(u("CellSize"), 1.0f / 16, (300.0f / 384) / 6);
+    glUniform2f(u("CellOffset"), 0.5 / 256.0, 0.5 / 256.0);
+    glUniform2f(u("RenderSize"), 0.75 * 16 / cfg.Width, 0.75 * 33.33 / cfg.Height);
+    glUniform2f(u("RenderOrigin"), -0.96, 0.9);
 
     // Misc Initialization
     Globals.Theta = 0;

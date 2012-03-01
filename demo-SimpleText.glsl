@@ -23,9 +23,9 @@ out vec2 gTexCoord;
 uniform sampler2D Sampler;
 
 uniform vec2 CellSize;
-uniform vec2 CellOffset = vec2(0.5/256.0,0.5/256.0);
-uniform vec2 RenderSize = vec2(0.75 * 16 / 1280, 0.75 * 33.33 / 720);
-uniform vec2 RenderOrigin = vec2(-0.96, 0.9);
+uniform vec2 CellOffset;
+uniform vec2 RenderSize;
+uniform vec2 RenderOrigin;
 
 void main()
 {
