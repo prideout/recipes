@@ -219,52 +219,52 @@ static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKe
 
 static GLuint LoadTexture(const char* filename)
 {
-    FILE *fp = fopen(filename, "rb");
-    pezCheck(fp ? 1 : 0, "Can't find %s", filename);
-    unsigned char header[8];
-    fread(header, 1, 8, fp);
-    bool isPng = !png_sig_cmp(header, 0, 8);
-    pezCheck(isPng, "%s is not a valid PNG file.", filename);
+    unsigned long w, h;
+    int color_type, bit_depth, row_stride;
+    png_bytep image;
 
-    png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    pezCheckPointer(png_ptr, "PNG error line %d", __LINE__);
+    if (true) {
+        FILE *fp = fopen(filename, "rb");
+        pezCheck(fp ? 1 : 0, "Can't find %s", filename);
+        unsigned char header[8];
+        fread(header, 1, 8, fp);
+        bool isPng = !png_sig_cmp(header, 0, 8);
+        pezCheck(isPng, "%s is not a valid PNG file.", filename);
+        png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+        pezCheckPointer(png_ptr, "PNG error line %d", __LINE__);
+        png_infop info_ptr = png_create_info_struct(png_ptr);
+        pezCheckPointer(info_ptr, "PNG error line %d", __LINE__);
+        png_init_io(png_ptr, fp);
+        png_set_sig_bytes(png_ptr, 8);
+        png_read_info(png_ptr, info_ptr);
+        w = png_get_image_width(png_ptr, info_ptr);
+        h = png_get_image_height(png_ptr, info_ptr);
+        color_type = png_get_color_type(png_ptr, info_ptr);
+        bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+        pezPrintString("%s %dx%d bpp=%d ct=%d\n", filename, w, h, bit_depth, color_type);
+        png_read_update_info(png_ptr, info_ptr);
+        row_stride = png_get_rowbytes(png_ptr,info_ptr);
+        image = (png_bytep) malloc(h * row_stride);
+        png_bytep* row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * h);
+        png_bytep row = image;
+        for (int y = 0; y < h; y++, row += row_stride) {
+            row_pointers[y] = row;
+        }
+        png_read_image(png_ptr, row_pointers);
+        free(row_pointers);
+        fclose(fp);
+        png_destroy_read_struct(&png_ptr, &info_ptr, png_infopp_NULL);
+    }
 
-    png_infop info_ptr = png_create_info_struct(png_ptr);
-    pezCheckPointer(info_ptr, "PNG error line %d", __LINE__);
+    pezCheck(bit_depth == 8, "Bit depth must be 8.");
 
-    //    pezCheck(setjmp(png_jmpbuf(png_ptr)), "PNG error line %d", __LINE__);
-
-    png_init_io(png_ptr, fp);
-    png_set_sig_bytes(png_ptr, 8);
-    png_read_info(png_ptr, info_ptr);
-
-    int bit_depth;
-    int color_type;
-    unsigned long width;
-    unsigned long height;
-    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, 
-                 &color_type, NULL, NULL, NULL);
-
-    pezPrintString("%d x %d bpp=%d ct=%d\n", width, height, bit_depth, color_type); //..
-
-#if 0
-    unsigned char* buffer;
-    unsigned char* image;
-    size_t buffersize, imagesize;
-    LodePNG_Decoder decoder;
-    LodePNG_loadFile(&buffer, &buffersize, filename);
-    LodePNG_Decoder_init(&decoder);
-    decoder.infoRaw.color.colorType = 0;
-    decoder.infoRaw.color.bitDepth = 8;
-    LodePNG_Decoder_decode(&decoder, &image, &imagesize, buffer, buffersize);
-    pezCheck(!decoder.error, "error %u: %s\n", decoder.error, LodePNG_error_text(decoder.error));
-    int bpp = LodePNG_InfoColor_getBpp(&decoder.infoPng.color);
-    int bitDepth = decoder.infoPng.color.bitDepth;
-    int colorChannels = LodePNG_InfoColor_getChannels(&decoder.infoPng.color);
-    pezCheck(bpp == 8 && bitDepth == 8 && colorChannels == 1);
-    int w = decoder.infoPng.width;
-    int h = decoder.infoPng.height;
-    pezPrintString("Loaded %s (%d x %d) bufferSize = %d, imageSize = %d\n", filename, w, h, buffersize, imagesize);
+    GLenum type = 0;
+    switch (color_type) {
+    case PNG_COLOR_TYPE_RGB:  type = GL_RGB;  break;
+    case PNG_COLOR_TYPE_RGBA: type = GL_RGBA; break;
+    case PNG_COLOR_TYPE_GRAY: type = GL_RED;  break;
+    default: pezFatal("Unknown color type: %d.", color_type);
+    }
 
     GLuint handle;
     glGenTextures(1, &handle);
@@ -273,15 +273,10 @@ static GLuint LoadTexture(const char* filename)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, image);
-
-    free(buffer);
-    free(image);
-    LodePNG_Decoder_cleanup(&decoder);
-#endif
-
-    GLuint handle = 0;
+    glTexImage2D(GL_TEXTURE_2D, 0, type, w, h, 0, type, GL_UNSIGNED_BYTE, image);
     pezCheck(OpenGLError);
+
+    free(image);
     return handle;
 }
 
