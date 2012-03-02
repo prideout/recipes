@@ -18,8 +18,12 @@ run: Lava
 
 all: $(DEMOS)
 
-%: $(PREFIX)%.glsl $(PREFIX)%.o $(SHARED)
-	$(CC) $(PREFIX)$*.o $(SHARED) -o $* $(LIBS)
+define DEMO_RULE
+$(1): $(PREFIX)$(1).o $(PREFIX)$(1).glsl $(SHARED)
+	$(CC) $(PREFIX)$(1).o $(SHARED) -o $(1) $(LIBS)
+endef
+
+$(foreach demo,$(DEMOS),$(eval $(call DEMO_RULE,$(demo))))
 
 .c.o:
 	$(CC) $(CFLAGS) $< -o $@

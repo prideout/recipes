@@ -4,7 +4,6 @@
 
 #include <stdlib.h>
 #include <png.h>
-#include "lodepng.h" // please nuke me if libpng is at pixar
 #include "pez.h"
 #include "vmath.h"
 
@@ -29,7 +28,8 @@ static GLuint LoadTexture(const char* filename);
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
 #define offset(x) ((const GLvoid*)x)
-#define OpenGLError GL_NO_ERROR == glGetError(), "%s:%d - OpenGL Error - %s", __FILE__, __LINE__, __FUNCTION__
+#define OpenGLError GL_NO_ERROR == glGetError(),                        \
+        "%s:%d - OpenGL Error - %s", __FILE__, __LINE__, __FUNCTION__   \
 
 PezConfig PezGetConfig()
 {
@@ -119,9 +119,8 @@ void PezInitialize()
     Scene.ClipPlane = (Vector4){0, 1, 0, 7};
 
     // Load textures
-    Scene.CloudTexture = LoadTexture("verasansmono.png");
-    //Scene.CloudTexture = LoadTexture("cloud.png");
-    //Scene.LavaTexture = LoadTexture("lavatile.png");
+    Scene.CloudTexture = LoadTexture("cloud.png");
+    Scene.LavaTexture = LoadTexture("lavatile.png");
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CLIP_DISTANCE0);
@@ -220,16 +219,35 @@ static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKe
 
 static GLuint LoadTexture(const char* filename)
 {
-    if (true) {
-        FILE *fp = fopen(filename, "rb");
-        pezCheck(fp ? 1 : 0, "Can't find %s", filename);
-        unsigned char header[8];
-        fread(header, 1, 8, fp);
-        bool isPng = !png_sig_cmp(header, 0, 8);
-        pezCheck(isPng, "%s is not a valid PNG file.", filename);
-        fclose(fp);
-    }
+    FILE *fp = fopen(filename, "rb");
+    pezCheck(fp ? 1 : 0, "Can't find %s", filename);
+    unsigned char header[8];
+    fread(header, 1, 8, fp);
+    bool isPng = !png_sig_cmp(header, 0, 8);
+    pezCheck(isPng, "%s is not a valid PNG file.", filename);
 
+    png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+    pezCheckPointer(png_ptr, "PNG error line %d", __LINE__);
+
+    png_infop info_ptr = png_create_info_struct(png_ptr);
+    pezCheckPointer(info_ptr, "PNG error line %d", __LINE__);
+
+    //    pezCheck(setjmp(png_jmpbuf(png_ptr)), "PNG error line %d", __LINE__);
+
+    png_init_io(png_ptr, fp);
+    png_set_sig_bytes(png_ptr, 8);
+    png_read_info(png_ptr, info_ptr);
+
+    int bit_depth;
+    int color_type;
+    unsigned long width;
+    unsigned long height;
+    png_get_IHDR(png_ptr, info_ptr, &width, &height, &bit_depth, 
+                 &color_type, NULL, NULL, NULL);
+
+    pezPrintString("%d x %d bpp=%d ct=%d\n", width, height, bit_depth, color_type); //..
+
+#if 0
     unsigned char* buffer;
     unsigned char* image;
     size_t buffersize, imagesize;
@@ -260,7 +278,9 @@ static GLuint LoadTexture(const char* filename)
     free(buffer);
     free(image);
     LodePNG_Decoder_cleanup(&decoder);
+#endif
 
+    GLuint handle = 0;
     pezCheck(OpenGLError);
     return handle;
 }

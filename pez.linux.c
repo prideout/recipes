@@ -315,6 +315,7 @@ void pezFatal(const char* pStr, ...)
     va_start(a, pStr);
     _pezFatal(pStr, a);
 }
+
 void pezCheck(int condition, ...)
 {
     va_list a;
@@ -324,6 +325,19 @@ void pezCheck(int condition, ...)
         return;
 
     va_start(a, condition);
+    pStr = va_arg(a, const char*);
+    _pezFatal(pStr, a);
+}
+
+void pezCheckPointer(void* p, ...)
+{
+    va_list a;
+    const char* pStr;
+
+    if (p != NULL)
+        return;
+
+    va_start(a, p);
     pStr = va_arg(a, const char*);
     _pezFatal(pStr, a);
 }

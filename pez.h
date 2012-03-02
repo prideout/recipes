@@ -50,6 +50,7 @@ enum {PEZ_DOWN, PEZ_UP, PEZ_MOVE, PEZ_DOUBLECLICK};
 void pezPrintString(const char* pStr, ...);
 void pezFatal(const char* pStr, ...);
 void pezCheck(int condition, ...);
+void pezCheckPointer(void* p, ...);
 int pezIsPressing(char key);
 const char* pezResourcePath();
 const char* pezOpenFileDialog();
