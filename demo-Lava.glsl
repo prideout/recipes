@@ -159,5 +159,33 @@ void main( void ) {
     float fogFactor = exp2( - fogDensity * fogDensity * depth * depth * LOG2 );
     fogFactor = 1.0 - clamp( fogFactor, 0.0, 1.0 );
 				
-    FragColor = mix( FragColor, vec4( fogColor, FragColor.w ), fogFactor );
+    FragColor = texture(texture2, vTexCoord); // mix( FragColor, vec4( fogColor, FragColor.w ), fogFactor );
+}
+
+-- Quad.VS
+
+in vec2 Position;
+in vec2 TexCoord;
+out vec2 vTexCoord;
+
+void main()
+{
+    vTexCoord = TexCoord;
+    gl_Position = vec4(Position, 0, 1);
+}
+
+-- Quad.FS
+
+in vec2 vTexCoord;
+layout(location = 0) out vec4 FragColor;
+uniform sampler2D Sampler;
+uniform vec3 Scale;
+
+void main()
+{
+    FragColor = vec4(Scale, 1) * texture(Sampler, vTexCoord);
+    if (gl_FragCoord.x < 1 || gl_FragCoord.x > 1279 || gl_FragCoord.y < 1 || gl_FragCoord.y > 799) {
+        FragColor.r = 1;
+        FragColor.a = 1;
+    }
 }

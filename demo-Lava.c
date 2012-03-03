@@ -19,12 +19,17 @@ struct SceneParameters {
     GLuint LavaTexture;
     GLuint CloudTexture;
     GLuint BoringProgram;
+    GLuint QuadProgram;
     GLuint LavaProgram;
+    GLuint TorusVao;
+    GLuint QuadVao;
 } Scene;
 
 static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
 static GLuint CurrentProgram();
 static GLuint LoadTexture(const char* filename);
+static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
+static GLuint CreateTorus(float major, float minor, int slices, int stacks);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
@@ -36,14 +41,14 @@ PezConfig PezGetConfig()
 {
     PezConfig config;
     config.Title = __FILE__;
-    config.Width = 853;
-    config.Height = 480;
+    config.Width = 1280;
+    config.Height = 800;
     config.Multisampling = true;
     config.VerticalSync = false;
     return config;
 }
 
-static void CreateTorus(float major, float minor, int slices, int stacks)
+static GLuint CreateTorus(float major, float minor, int slices, int stacks)
 {
     GLuint vao;
     glGenVertexArrays(1, &vao);
@@ -105,23 +110,26 @@ static void CreateTorus(float major, float minor, int slices, int stacks)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices, GL_STATIC_DRAW);
 
     free(indices);
+    return vao;
 }
 
 void PezInitialize()
 {
-    Scene.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
+    Scene.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Scene.BoringProgram = LoadProgram("VS", "GS", "FS");
+    Scene.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
 
     PezConfig cfg = PezGetConfig();
     const float h = 5.0f;
     const float w = h * cfg.Width / cfg.Height;
     Scene.Projection = M4MakeFrustum(-w, w,   // left & right planes
                                      -h, h,   // bottom & top planes
-                                     65, 90); // near & far planes
+                                     65, 200); // near & far planes
 
     const float MajorRadius = 8.0f, MinorRadius = 2.0f;
     const int Slices = 40, Stacks = 10;
-    CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
+    Scene.QuadVao = CreateQuad(cfg.Width, -cfg.Height, cfg.Width, cfg.Height);
+    Scene.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
     Scene.Theta = 0;
 
     // Load textures
@@ -129,7 +137,7 @@ void PezInitialize()
     Scene.LavaTexture = LoadTexture("lavatile.png");
 
     glEnable(GL_DEPTH_TEST);
-    glClearColor(0.5f, 0.6f, 0.7f, 1.0f);
+    glClearColor(0, 0, 0, 0);
 }
 
 void PezUpdate(float seconds)
@@ -138,8 +146,8 @@ void PezUpdate(float seconds)
     Scene.Theta += seconds * RadiansPerSecond;
     
     // Create the model-view matrix:
-    Scene.ModelMatrix = M4MakeRotationZ(Scene.Theta);
-    Point3 eye = {0, -75, 25};
+    Scene.ModelMatrix = M4MakeRotationZYX((Vector3){Scene.Theta, Scene.Theta, Scene.Theta});
+    Point3 eye = {0, -90, 30};
     Point3 target = {0, 0, 0};
     Vector3 up = {0, 1, 0};
     Scene.ViewMatrix = M4MakeLookAt(eye, target, up);
@@ -151,6 +159,9 @@ void PezUpdate(float seconds)
 
 void PezRender()
 {
+    glUseProgram(Scene.LavaProgram);
+    glBindVertexArray(Scene.TorusVao);
+
     float* pModel = (float*) &Scene.ModelMatrix;
     float* pView = (float*) &Scene.ViewMatrix;
     float* pModelview = (float*) &Scene.Modelview;
@@ -169,6 +180,10 @@ void PezRender()
     glBindTexture(GL_TEXTURE_2D, Scene.LavaTexture);
 
     glDrawElements(GL_TRIANGLES, Scene.IndexCount, GL_UNSIGNED_SHORT, 0);
+
+    glUseProgram(Scene.QuadProgram);
+    glBindVertexArray(Scene.QuadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 void PezHandleMouse(int x, int y, int action)
@@ -292,3 +307,47 @@ static GLuint LoadTexture(const char* filename)
     return handle;
 }
 
+static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight)
+{
+    // Stretch to fit:
+    float q[] = {
+        -1, -1, 0, 1,
+        +1, -1, 1, 1,
+        -1, +1, 0, 0,
+        +1, +1, 1, 0 };
+        
+    if (sourceHeight < 0) {
+        sourceHeight = -sourceHeight;
+        q[3] = 1-q[3];
+        q[7] = 1-q[7];
+        q[11] = 1-q[11];
+        q[15] = 1-q[15];
+    }
+
+    float sourceRatio = (float) sourceWidth / sourceHeight;
+    float destRatio = (float) destWidth  / destHeight;
+    
+    // Horizontal fit:
+    if (sourceRatio > destRatio) {
+        q[1] = q[5] = -destRatio / sourceRatio;
+        q[9] = q[13] = destRatio / sourceRatio;
+
+    // Vertical fit:    
+    } else {
+        q[0] = q[8] = -sourceRatio / destRatio;
+        q[4] = q[12] = sourceRatio / destRatio;
+    }
+
+    GLuint vbo, vao;
+    glUseProgram(Scene.QuadProgram);
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+    glGenBuffers(1, &vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(q), q, GL_STATIC_DRAW);
+    glVertexAttribPointer(a("Position"), 2, GL_FLOAT, GL_FALSE, 16, 0);
+    glVertexAttribPointer(a("TexCoord"), 2, GL_FLOAT, GL_FALSE, 16, offset(8));
+    glEnableVertexAttribArray(a("Position"));
+    glEnableVertexAttribArray(a("TexCoord"));
+    return vao;
+}
