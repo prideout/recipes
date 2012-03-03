@@ -26,9 +26,9 @@ struct GlobalsParameters {
     Matrix3 NormalMatrix;
     GLuint LavaTexture;
     GLuint CloudTexture;
-    GLuint BoringProgram;
     GLuint QuadProgram;
     GLuint LavaProgram;
+    GLuint BlurProgram;
     GLuint TorusVao;
     GLuint QuadVao;
     RenderTarget Scene;
@@ -125,7 +125,7 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
 void PezInitialize()
 {
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
-    Globals.BoringProgram = LoadProgram("VS", "GS", "FS");
+    Globals.BlurProgram = LoadProgram("Quad.VS", 0, "Blur.FS");
     Globals.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
 
     PezConfig cfg = PezGetConfig();
@@ -176,12 +176,34 @@ void PezRender()
     float* pView = (float*) &Globals.ViewMatrix;
     float* pModelview = (float*) &Globals.Modelview;
     float* pProjection = (float*) &Globals.Projection;
-    //Matrix4 ortho = M4MakeOrthographic(0, cfg.Width, 0, cfg.Height, 0, 1);
-    //float* pOrtho = (float*) &ortho;
+    int w = Globals.Small[0].Width;
+    int h = Globals.Small[0].Height;
+    const float hoffsets[5] = {
+        -2.0f / w,
+        -1.0f / w,
+        0,
+        +1.0f / w,
+        +2.0f / w,
+    };
+    const float voffsets[5] = {
+        -2.0f / h,
+        -1.0f / h,
+        0,
+        +1.0f / h,
+        +2.0f / h,
+    };
+    const float weights[5] = {
+        1.0f / 16.0f,
+        4.0f / 16.0f,
+        6.0f / 16.0f,
+        4.0f / 16.0f,
+        1.0f / 16.0f,
+    };
 
     glBindFramebuffer(GL_FRAMEBUFFER, Globals.Scene.Fbo);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    glEnable(GL_DEPTH_TEST);
     glUseProgram(Globals.LavaProgram);
     glBindVertexArray(Globals.TorusVao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
@@ -195,41 +217,48 @@ void PezRender()
     glBindTexture(GL_TEXTURE_2D, Globals.LavaTexture);
     glDrawElements(GL_TRIANGLES, Globals.IndexCount, GL_UNSIGNED_SHORT, 0);
     glActiveTexture(GL_TEXTURE0);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, Globals.Small[0].Fbo);
-    glViewport(0, 0, Globals.Small[0].Width, Globals.Small[0].Height);
     glDisable(GL_DEPTH_TEST);
+
+    // Downsample
+    glBindFramebuffer(GL_FRAMEBUFFER, Globals.Small[0].Fbo);
+    glViewport(0, 0, w, h);
     glUseProgram(Globals.QuadProgram);
     glBindTexture(GL_TEXTURE_2D, Globals.Scene.ColorTexture);
-    //glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
     glBindVertexArray(Globals.QuadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTexture(GL_TEXTURE_2D, 0);
-    glEnable(GL_DEPTH_TEST);
 
+    // Horizontal Pass
+    glBindFramebuffer(GL_FRAMEBUFFER, Globals.Small[1].Fbo);
+    glUseProgram(Globals.BlurProgram);
+    glUniform2fv(u("Offsets"), 5, hoffsets);
+    glUniform1fv(u("Weights"), 5, weights);
+    glBindTexture(GL_TEXTURE_2D, Globals.Small[0].ColorTexture);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Vertical Pass
+    glBindFramebuffer(GL_FRAMEBUFFER, Globals.Small[0].Fbo);
+    glUniform2fv(u("Offsets"), 5, voffsets);
+    glBindTexture(GL_TEXTURE_2D, Globals.Small[1].ColorTexture);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    // Blit full-res unprocessed scene to screen:
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, cfg.Width, cfg.Height);
-    glDisable(GL_DEPTH_TEST);
     glUseProgram(Globals.QuadProgram);
     glUniform1f(u("Alpha"), 1.0);
     glBindTexture(GL_TEXTURE_2D, Globals.Scene.ColorTexture);
-    //glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
-    glBindVertexArray(Globals.QuadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTexture(GL_TEXTURE_2D, 0);
-    glEnable(GL_DEPTH_TEST);
 
+    // Blend over the blurred image:
     glEnable(GL_BLEND);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_DEPTH_TEST);
-    glUseProgram(Globals.QuadProgram);
-    glUniform1f(u("Alpha"), 1.0);
+    glUniform1f(u("Alpha"), 0.5);
     glBindTexture(GL_TEXTURE_2D, Globals.Small[0].ColorTexture);
-    //glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
-    glBindVertexArray(Globals.QuadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTexture(GL_TEXTURE_2D, 0);
-    glEnable(GL_DEPTH_TEST);
     glDisable(GL_BLEND);
 }
 
