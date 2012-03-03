@@ -179,14 +179,13 @@ void main()
 in vec2 vTexCoord;
 layout(location = 0) out vec4 FragColor;
 uniform sampler2D Sampler;
-uniform vec3 Scale;
+uniform float Alpha = 1.0;
 
 void main()
 {
-    FragColor = vec4(Scale, 1) * texture(Sampler, vTexCoord);
+    FragColor = texture(Sampler, vTexCoord);
     if (gl_FragCoord.x < 1 || gl_FragCoord.x > 1279 || gl_FragCoord.y < 1 || gl_FragCoord.y > 799) {
         FragColor.rgb = vec3(0.5);
-        FragColor.a = 1;
     }
-    gl_FragDepth = 0.99;
+    FragColor.a *= Alpha;
 }

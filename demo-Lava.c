@@ -11,9 +11,11 @@ typedef struct {
     GLuint ColorTexture;
     GLuint DepthBuffer;
     GLuint Fbo;
+    int Width;
+    int Height;
 } RenderTarget;
 
-struct SceneParameters {
+struct GlobalsParameters {
     int IndexCount;
     float Theta;
     float Time;
@@ -22,7 +24,6 @@ struct SceneParameters {
     Matrix4 ViewMatrix;
     Matrix4 ModelMatrix;
     Matrix3 NormalMatrix;
-    GLfloat PackedNormalMatrix[9];
     GLuint LavaTexture;
     GLuint CloudTexture;
     GLuint BoringProgram;
@@ -30,7 +31,9 @@ struct SceneParameters {
     GLuint LavaProgram;
     GLuint TorusVao;
     GLuint QuadVao;
-} Scene;
+    RenderTarget Scene;
+    RenderTarget Small[2];
+} Globals;
 
 static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
 static GLuint CurrentProgram();
@@ -94,8 +97,8 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
 
     free(verts);
 
-    Scene.IndexCount = (slices-1) * (stacks-1) * 6;
-    size = Scene.IndexCount * sizeof(GLushort);
+    Globals.IndexCount = (slices-1) * (stacks-1) * 6;
+    size = Globals.IndexCount * sizeof(GLushort);
     GLushort* indices = (GLushort*) malloc(size);
     GLushort* index = indices;
     int v = 0;
@@ -121,77 +124,113 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
 
 void PezInitialize()
 {
-    Scene.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
-    Scene.BoringProgram = LoadProgram("VS", "GS", "FS");
-    Scene.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
+    Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
+    Globals.BoringProgram = LoadProgram("VS", "GS", "FS");
+    Globals.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
 
     PezConfig cfg = PezGetConfig();
+    Globals.Scene = CreateRenderTarget(cfg.Width, cfg.Height, true);
+    int d = 4;
+    Globals.Small[0] = CreateRenderTarget(cfg.Width/d, cfg.Height/d, false);
+    Globals.Small[1] = CreateRenderTarget(cfg.Width/d, cfg.Height/d, false);
 
     float fovy = 170 * TwoPi / 180;
     float aspect = (float) cfg.Width / cfg.Height;
     float zNear = 65, zFar = 90;
-    Scene.Projection = M4MakePerspective(fovy, aspect, zNear, zFar);
+    Globals.Projection = M4MakePerspective(fovy, aspect, zNear, zFar);
 
     const float MajorRadius = 8.0f, MinorRadius = 4.0f;
     const int Slices = 60, Stacks = 30;
-    Scene.QuadVao = CreateQuad(cfg.Width, -cfg.Height, cfg.Width, cfg.Height);
-    Scene.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
-    Scene.Theta = 0;
+    Globals.QuadVao = CreateQuad(1, -1, 1, 1);
+    Globals.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
+    Globals.Theta = 0;
 
     // Load textures
-    Scene.CloudTexture = LoadTexture("cloud.png");
-    Scene.LavaTexture = LoadTexture("lavatile.png");
+    Globals.CloudTexture = LoadTexture("cloud.png");
+    Globals.LavaTexture = LoadTexture("lavatile.png");
 
-    glEnable(GL_DEPTH_TEST);
     glClearColor(0, 0, 0, 0);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void PezUpdate(float seconds)
 {
     const float RadiansPerSecond = 0.5f;
-    Scene.Theta += seconds * RadiansPerSecond;
-    Scene.Time += seconds;
+    Globals.Theta += seconds * RadiansPerSecond;
+    Globals.Time += seconds;
     
     // Create the model-view matrix:
-    Scene.ModelMatrix = M4MakeRotationZYX((Vector3){Scene.Theta, Scene.Theta, Scene.Theta});
+    Globals.ModelMatrix = M4MakeRotationZYX((Vector3){Globals.Theta, Globals.Theta, Globals.Theta});
     Point3 eye = {0, 0, -80};
     Point3 target = {0, 0, 0};
     Vector3 up = {0, 1, 0};
-    Scene.ViewMatrix = M4MakeLookAt(eye, target, up);
-    Scene.Modelview = M4Mul(Scene.ViewMatrix, Scene.ModelMatrix);
-    Scene.NormalMatrix = M4GetUpper3x3(Scene.Modelview);
-    for (int i = 0; i < 9; ++i)
-        Scene.PackedNormalMatrix[i] = M3GetElem(Scene.NormalMatrix, i/3, i%3);
+    Globals.ViewMatrix = M4MakeLookAt(eye, target, up);
+    Globals.Modelview = M4Mul(Globals.ViewMatrix, Globals.ModelMatrix);
+    Globals.NormalMatrix = M4GetUpper3x3(Globals.Modelview);
 }
 
 void PezRender()
 {
-    glUseProgram(Scene.LavaProgram);
-    glBindVertexArray(Scene.TorusVao);
+    PezConfig cfg = PezGetConfig();
+    float* pModel = (float*) &Globals.ModelMatrix;
+    float* pView = (float*) &Globals.ViewMatrix;
+    float* pModelview = (float*) &Globals.Modelview;
+    float* pProjection = (float*) &Globals.Projection;
+    //Matrix4 ortho = M4MakeOrthographic(0, cfg.Width, 0, cfg.Height, 0, 1);
+    //float* pOrtho = (float*) &ortho;
 
-    float* pModel = (float*) &Scene.ModelMatrix;
-    float* pView = (float*) &Scene.ViewMatrix;
-    float* pModelview = (float*) &Scene.Modelview;
-    float* pProjection = (float*) &Scene.Projection;
-    float* pNormalMatrix = &Scene.PackedNormalMatrix[0];
+    glBindFramebuffer(GL_FRAMEBUFFER, Globals.Scene.Fbo);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glUseProgram(Globals.LavaProgram);
+    glBindVertexArray(Globals.TorusVao);
     glUniformMatrix4fv(u("ViewMatrix"), 1, 0, pView);
     glUniformMatrix4fv(u("ModelMatrix"), 1, 0, pModel);
     glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
-    glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
-    glUniform1f(u("time"), Scene.Time * 3);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+    glUniform1f(u("time"), Globals.Time * 3);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, Scene.CloudTexture);
+    glBindTexture(GL_TEXTURE_2D, Globals.CloudTexture);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, Scene.LavaTexture);
+    glBindTexture(GL_TEXTURE_2D, Globals.LavaTexture);
+    glDrawElements(GL_TRIANGLES, Globals.IndexCount, GL_UNSIGNED_SHORT, 0);
+    glActiveTexture(GL_TEXTURE0);
 
-    glDrawElements(GL_TRIANGLES, Scene.IndexCount, GL_UNSIGNED_SHORT, 0);
-
-    glUseProgram(Scene.QuadProgram);
-    glBindVertexArray(Scene.QuadVao);
+    glBindFramebuffer(GL_FRAMEBUFFER, Globals.Small[0].Fbo);
+    glViewport(0, 0, Globals.Small[0].Width, Globals.Small[0].Height);
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(Globals.QuadProgram);
+    glBindTexture(GL_TEXTURE_2D, Globals.Scene.ColorTexture);
+    //glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
+    glBindVertexArray(Globals.QuadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glEnable(GL_DEPTH_TEST);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, cfg.Width, cfg.Height);
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(Globals.QuadProgram);
+    glUniform1f(u("Alpha"), 1.0);
+    glBindTexture(GL_TEXTURE_2D, Globals.Scene.ColorTexture);
+    //glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
+    glBindVertexArray(Globals.QuadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glEnable(GL_DEPTH_TEST);
+
+    glEnable(GL_BLEND);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_DEPTH_TEST);
+    glUseProgram(Globals.QuadProgram);
+    glUniform1f(u("Alpha"), 1.0);
+    glBindTexture(GL_TEXTURE_2D, Globals.Small[0].ColorTexture);
+    //glUniformMatrix4fv(u("Projection"), 1, 0, pOrtho);
+    glBindVertexArray(Globals.QuadVao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_BLEND);
 }
 
 void PezHandleMouse(int x, int y, int action)
@@ -282,7 +321,7 @@ static GLuint LoadTexture(const char* filename)
         image = (png_bytep) malloc(h * row_stride);
         png_bytep* row_pointers = (png_bytep*) malloc(sizeof(png_bytep) * h);
         png_bytep row = image;
-        for (int y = 0; y < h; y++, row += row_stride) {
+        for (int y = h-1; y >= 0; y--, row += row_stride) {
             row_pointers[y] = row;
         }
         png_read_image(png_ptr, row_pointers);
@@ -348,7 +387,7 @@ static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int d
     }
 
     GLuint vbo, vao;
-    glUseProgram(Scene.QuadProgram);
+    glUseProgram(Globals.QuadProgram);
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     glGenBuffers(1, &vbo);
@@ -366,6 +405,8 @@ static RenderTarget CreateRenderTarget(int width, int height, bool depth)
     pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
 
     RenderTarget rt;
+    rt.Width = width;
+    rt.Height = height;
 
     glGenTextures(1, &rt.ColorTexture);
     glBindTexture(GL_TEXTURE_2D, rt.ColorTexture);
