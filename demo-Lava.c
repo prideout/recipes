@@ -7,6 +7,12 @@
 #include "pez.h"
 #include "vmath.h"
 
+typedef struct {
+    GLuint ColorTexture;
+    GLuint DepthBuffer;
+    GLuint Fbo;
+} RenderTarget;
+
 struct SceneParameters {
     int IndexCount;
     float Theta;
@@ -31,6 +37,7 @@ static GLuint CurrentProgram();
 static GLuint LoadTexture(const char* filename);
 static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int destHeight);
 static GLuint CreateTorus(float major, float minor, int slices, int stacks);
+static RenderTarget CreateRenderTarget(int width, int height, bool depth);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
@@ -44,7 +51,7 @@ PezConfig PezGetConfig()
     config.Title = __FILE__;
     config.Width = 1280;
     config.Height = 800;
-    config.Multisampling = false;
+    config.Multisampling = true;
     config.VerticalSync = true;
     return config;
 }
@@ -122,10 +129,10 @@ void PezInitialize()
 
     float fovy = 170 * TwoPi / 180;
     float aspect = (float) cfg.Width / cfg.Height;
-    float zNear = 70, zFar = 90;
+    float zNear = 65, zFar = 90;
     Scene.Projection = M4MakePerspective(fovy, aspect, zNear, zFar);
 
-    const float MajorRadius = 8.0f, MinorRadius = 2.0f;
+    const float MajorRadius = 8.0f, MinorRadius = 4.0f;
     const int Slices = 60, Stacks = 30;
     Scene.QuadVao = CreateQuad(cfg.Width, -cfg.Height, cfg.Width, cfg.Height);
     Scene.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
@@ -299,9 +306,10 @@ static GLuint LoadTexture(const char* filename)
     glBindTexture(GL_TEXTURE_2D, handle);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexImage2D(GL_TEXTURE_2D, 0, type, w, h, 0, type, GL_UNSIGNED_BYTE, image);
+    glGenerateMipmap(GL_TEXTURE_2D);
     pezCheck(OpenGLError);
 
     free(image);
@@ -351,4 +359,37 @@ static GLuint CreateQuad(int sourceWidth, int sourceHeight, int destWidth, int d
     glEnableVertexAttribArray(a("Position"));
     glEnableVertexAttribArray(a("TexCoord"));
     return vao;
+}
+
+static RenderTarget CreateRenderTarget(int width, int height, bool depth)
+{
+    pezCheck(GL_NO_ERROR == glGetError(), "OpenGL error on line %d",  __LINE__);
+
+    RenderTarget rt;
+
+    glGenTextures(1, &rt.ColorTexture);
+    glBindTexture(GL_TEXTURE_2D, rt.ColorTexture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+    pezCheck(GL_NO_ERROR == glGetError(), "Unable to create color texture.");
+
+    glGenFramebuffers(1, &rt.Fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, rt.Fbo);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, rt.ColorTexture, 0);
+
+    if (depth) {
+        glGenRenderbuffers(1, &rt.DepthBuffer);
+        glBindRenderbuffer(GL_RENDERBUFFER, rt.DepthBuffer);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rt.DepthBuffer);
+    } else {
+        rt.DepthBuffer = 0;
+    }
+
+    pezCheck(GL_FRAMEBUFFER_COMPLETE == glCheckFramebufferStatus(GL_FRAMEBUFFER), "Invalid FBO.");
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    return rt;
 }
