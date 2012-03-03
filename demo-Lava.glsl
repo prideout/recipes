@@ -106,3 +106,18 @@ void main()
     }
     FragColor.a *= Alpha;
 }
+
+-- Hipass.FS
+
+in vec2 vTexCoord;
+layout(location = 0) out vec4 FragColor;
+uniform sampler2D Sampler;
+uniform float Threshold = 1.0;
+const vec3 Black = vec3(0, 0, 0);
+
+void main()
+{
+    vec3 c = texture(Sampler, vTexCoord).rgb;
+    float gray = dot(c,c);
+    FragColor = vec4(gray > Threshold ? c : Black, 1);
+}

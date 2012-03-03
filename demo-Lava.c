@@ -26,6 +26,7 @@ struct GlobalsParameters {
     Matrix3 NormalMatrix;
     GLuint LavaTexture;
     GLuint CloudTexture;
+    GLuint HipassProgram;
     GLuint QuadProgram;
     GLuint LavaProgram;
     GLuint BlurProgram;
@@ -124,13 +125,14 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
 
 void PezInitialize()
 {
+    Globals.HipassProgram = LoadProgram("Quad.VS", 0, "Hipass.FS");
     Globals.QuadProgram = LoadProgram("Quad.VS", 0, "Quad.FS");
     Globals.BlurProgram = LoadProgram("Quad.VS", 0, "Blur.FS");
     Globals.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
 
     PezConfig cfg = PezGetConfig();
     Globals.Scene = CreateRenderTarget(cfg.Width, cfg.Height, true);
-    int d = 4;
+    int d = 6;
     Globals.Small[0] = CreateRenderTarget(cfg.Width/d, cfg.Height/d, false);
     Globals.Small[1] = CreateRenderTarget(cfg.Width/d, cfg.Height/d, false);
 
@@ -150,7 +152,7 @@ void PezInitialize()
     Globals.LavaTexture = LoadTexture("lavatile.png");
 
     glClearColor(0, 0, 0, 0);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_ONE, GL_ONE);
 }
 
 void PezUpdate(float seconds)
@@ -178,19 +180,19 @@ void PezRender()
     float* pProjection = (float*) &Globals.Projection;
     int w = Globals.Small[0].Width;
     int h = Globals.Small[0].Height;
-    const float hoffsets[5] = {
-        -2.0f / w,
-        -1.0f / w,
-        0,
-        +1.0f / w,
-        +2.0f / w,
+    const float hoffsets[10] = {
+        -2.0f / w, 0,
+        -1.0f / w, 0,
+        0, 0,
+        +1.0f / w, 0,
+        +2.0f / w, 0,
     };
-    const float voffsets[5] = {
-        -2.0f / h,
-        -1.0f / h,
-        0,
-        +1.0f / h,
-        +2.0f / h,
+    const float voffsets[10] = {
+        0, -2.0f / h,
+        0, -1.0f / h,
+        0, 0,
+        0, +1.0f / h,
+        0, +2.0f / h,
     };
     const float weights[5] = {
         1.0f / 16.0f,
@@ -222,7 +224,7 @@ void PezRender()
     // Downsample
     glBindFramebuffer(GL_FRAMEBUFFER, Globals.Small[0].Fbo);
     glViewport(0, 0, w, h);
-    glUseProgram(Globals.QuadProgram);
+    glUseProgram(Globals.HipassProgram);
     glBindTexture(GL_TEXTURE_2D, Globals.Scene.ColorTexture);
     glBindVertexArray(Globals.QuadVao);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -253,9 +255,8 @@ void PezRender()
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    // Blend over the blurred image:
+    // Additive blending with the blurred image:
     glEnable(GL_BLEND);
-    glUniform1f(u("Alpha"), 0.5);
     glBindTexture(GL_TEXTURE_2D, Globals.Small[0].ColorTexture);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindTexture(GL_TEXTURE_2D, 0);
