@@ -10,6 +10,7 @@
 struct SceneParameters {
     int IndexCount;
     float Theta;
+    float Time;
     Matrix4 Projection;
     Matrix4 Modelview;
     Matrix4 ViewMatrix;
@@ -43,8 +44,8 @@ PezConfig PezGetConfig()
     config.Title = __FILE__;
     config.Width = 1280;
     config.Height = 800;
-    config.Multisampling = true;
-    config.VerticalSync = false;
+    config.Multisampling = false;
+    config.VerticalSync = true;
     return config;
 }
 
@@ -61,15 +62,15 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
 
     GLfloat* vert = verts;
     for (int slice = 0; slice < slices; slice++) {
-        float theta = slice * 2.0f * Pi / slices;
+        float theta = slice * 2.0f * Pi / (slices - 1);
         for (int stack = 0; stack < stacks; stack++) {
-            float phi = stack * 2.0f * Pi / stacks;
+            float phi = stack * 2.0f * Pi / (stacks - 1);
             float beta = major + minor * cos(phi);
             *vert++ = cos(theta) * beta;
             *vert++ = sin(theta) * beta;
             *vert++ = sin(phi) * minor;
-            *vert++ = (float) slice / slices;
-            *vert++ = (float) stack / stacks;
+            *vert++ = (float) slice / (slices-1);
+            *vert++ = (float) stack / (stacks-1);
         }
     }
 
@@ -86,25 +87,23 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
 
     free(verts);
 
-    Scene.IndexCount = slices * stacks * 6;
+    Scene.IndexCount = (slices-1) * (stacks-1) * 6;
     size = Scene.IndexCount * sizeof(GLushort);
     GLushort* indices = (GLushort*) malloc(size);
     GLushort* index = indices;
     int v = 0;
-    for (int i = 0; i < slices - 1; i++) {
-        for (int j = 0; j < stacks; j++) {
+    for (int i = 0; i < slices-1; i++) {
+        for (int j = 0; j < stacks-1; j++) {
             int next = (j + 1) % stacks;
-            *index++ = v+next+stacks; *index++ = v+next; *index++ = v+j;
-            *index++ = v+j; *index++ = v+j+stacks; *index++ = v+next+stacks;
+            *index++ = (v+next+stacks) % vertexCount;
+            *index++ = (v+next) % vertexCount;
+            *index++ = (v+j) % vertexCount;
+            *index++ = (v+j) % vertexCount;
+            *index++ = (v+j+stacks) % vertexCount;
+            *index++ = (v+next+stacks) % vertexCount;
         }
         v += stacks;
     }
-    for (int j = 0; j < stacks; j++) {
-        int next = (j + 1) % stacks;
-        *index++ = next; *index++ = v+next; *index++ = v+j;
-        *index++ = v+j; *index++ = j; *index++ = next;
-    }
-
     glGenBuffers(1, &handle);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices, GL_STATIC_DRAW);
@@ -120,14 +119,14 @@ void PezInitialize()
     Scene.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
 
     PezConfig cfg = PezGetConfig();
-    const float h = 5.0f;
-    const float w = h * cfg.Width / cfg.Height;
-    Scene.Projection = M4MakeFrustum(-w, w,   // left & right planes
-                                     -h, h,   // bottom & top planes
-                                     65, 200); // near & far planes
+
+    float fovy = 170 * TwoPi / 180;
+    float aspect = (float) cfg.Width / cfg.Height;
+    float zNear = 70, zFar = 90;
+    Scene.Projection = M4MakePerspective(fovy, aspect, zNear, zFar);
 
     const float MajorRadius = 8.0f, MinorRadius = 2.0f;
-    const int Slices = 40, Stacks = 10;
+    const int Slices = 60, Stacks = 30;
     Scene.QuadVao = CreateQuad(cfg.Width, -cfg.Height, cfg.Width, cfg.Height);
     Scene.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
     Scene.Theta = 0;
@@ -144,10 +143,11 @@ void PezUpdate(float seconds)
 {
     const float RadiansPerSecond = 0.5f;
     Scene.Theta += seconds * RadiansPerSecond;
+    Scene.Time += seconds;
     
     // Create the model-view matrix:
     Scene.ModelMatrix = M4MakeRotationZYX((Vector3){Scene.Theta, Scene.Theta, Scene.Theta});
-    Point3 eye = {0, -90, 30};
+    Point3 eye = {0, 0, -80};
     Point3 target = {0, 0, 0};
     Vector3 up = {0, 1, 0};
     Scene.ViewMatrix = M4MakeLookAt(eye, target, up);
@@ -172,6 +172,7 @@ void PezRender()
     glUniformMatrix4fv(u("Modelview"), 1, 0, pModelview);
     glUniformMatrix4fv(u("Projection"), 1, 0, pProjection);
     glUniformMatrix3fv(u("NormalMatrix"), 1, 0, pNormalMatrix);
+    glUniform1f(u("time"), Scene.Time * 3);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glActiveTexture(GL_TEXTURE0);
