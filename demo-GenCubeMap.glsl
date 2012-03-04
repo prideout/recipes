@@ -11,7 +11,7 @@ out vec2 vTexCoord;
 
 void main()
 {
-    vTexCoord = vec2( 3.0, 1.0 ) * TexCoord;
+    vTexCoord = vec2( 5.0, 1.0 ) * TexCoord;
     gl_Position = Projection * Modelview * Position;
 
 }
@@ -44,7 +44,7 @@ void main( void ) {
 				
     float p = texture( cloud, T1 * 2.0 ).a;
 				
-    vec4 color = texture( lava, T2 * 2.0 );
+    vec4 color = texture( lava, T2 * 2.0 ).bgra;
     vec4 temp = color * ( vec4( p, p, p, p ) * 2.0 ) + ( color * color - 0.1 );
 				
     if( temp.r > 1.0 ){ temp.bg += clamp( temp.r - 2.0, 0.0, 100.0 ); }
@@ -52,13 +52,6 @@ void main( void ) {
     if( temp.b > 1.0 ){ temp.rg += temp.b - 1.0; }
 				
     FragColor = temp;
-
-    float depth = gl_FragCoord.z * 4; // TODO some sort of auto-normalization?
-    const float LOG2 = 1.442695;
-    float fogFactor = exp2( - fogDensity * fogDensity * depth * depth * LOG2 );
-    fogFactor = 1.0 - clamp( fogFactor, 0.0, 1.0 );
-				
-    FragColor = mix( FragColor, vec4( fogColor, temp.a ), fogFactor );
 }
 
 -- Quad.VS

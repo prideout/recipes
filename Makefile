@@ -2,6 +2,7 @@ CC=gcc
 CFLAGS=-std=c99 -Wall -c -Wc++-compat -O3
 LIBS=-lX11 -lGL -lpng
 DEMOS=\
+	GenCubeMap \
 	Lava \
 	SimpleText \
 	TextGrid \
@@ -13,8 +14,8 @@ DEMOS=\
 SHARED=glew.o pez.o bstrlib.o pez.linux.o lodepng.o
 PREFIX=demo-
 
-run: Lava
-	./Lava
+run: GenCubeMap
+	./GenCubeMap
 
 all: $(DEMOS)
 
