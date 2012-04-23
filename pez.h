@@ -5,12 +5,11 @@ extern "C" {
 #endif
 
 #define PEZ_MAINLOOP 1
-
 #define PEZ_MOUSE_HANDLER 1
-
 #define PEZ_DROP_HANDLER 1
+#define GL3_PROTOTYPES
 
-#include "glew.h"
+#include "gl3.h"
 #include <stdbool.h>
 
 #define PEZ_FORWARD_COMPATIBLE_GL 1

@@ -11,7 +11,7 @@ DEMOS=\
 	DistancePicking \
 	ToonShading \
 
-SHARED=glew.o pez.o bstrlib.o pez.linux.o lodepng.o
+SHARED=pez.o bstrlib.o pez.linux.o lodepng.o
 PREFIX=demo-
 
 run: GenCubeMap
