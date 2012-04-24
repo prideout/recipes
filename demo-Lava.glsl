@@ -63,14 +63,13 @@ void main( void ) {
 
 -- Quad.VS
 
-in vec2 Position;
-in vec2 TexCoord;
 out vec2 vTexCoord;
 
 void main()
 {
-    vTexCoord = TexCoord;
-    gl_Position = vec4(Position, 0, 1);
+    int i = gl_VertexID;
+    vTexCoord = vec2(i%2,i/2);
+    gl_Position = vec4(2*vTexCoord-1,0,1);
 }
 
 -- Blur.FS
