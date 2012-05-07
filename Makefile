@@ -10,6 +10,8 @@ DEMOS=\
 	VoronoiPicking \
 	DistancePicking \
 	ToonShading \
+	DeepOpacity \
+	Raycast \
 
 SHARED=pez.o bstrlib.o pez.linux.o lodepng.o
 PREFIX=demo-
