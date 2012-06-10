@@ -1,4 +1,5 @@
-// Lava OpenGL Demo by Philip Rideout
+// CubeMap OpenGL Demo by Philip Rideout
+// Lava Shader by TheGameMaker
 // Licensed under the Creative Commons Attribution 3.0 Unported License. 
 // http://creativecommons.org/licenses/by/3.0/
 
@@ -27,13 +28,16 @@ struct GlobalsParameters {
     GLuint LavaTexture;
     GLuint CloudTexture;
     GLuint LavaProgram;
+    GLuint ReflectionProgram;
     GLuint TorusVao;
+    GLuint SphereVao;
 } Globals;
 
 static GLuint LoadProgram(const char* vsKey, const char* gsKey, const char* fsKey);
 static GLuint CurrentProgram();
 static GLuint LoadTexture(const char* filename);
 static GLuint CreateTorus(float major, float minor, int slices, int stacks);
+static GLuint CreateSphere(float radius, int slices, int stacks);
 
 #define u(x) glGetUniformLocation(CurrentProgram(), x)
 #define a(x) glGetAttribLocation(CurrentProgram(), x)
@@ -115,21 +119,87 @@ static GLuint CreateTorus(float major, float minor, int slices, int stacks)
     return vao;
 }
 
+static GLuint CreateSphere(float radius, int slices, int stacks)
+{
+    GLuint vao;
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    int vertexCount = slices * stacks * 3;
+    int vertexStride = sizeof(float) * 5;
+    GLsizeiptr size = vertexCount * vertexStride;
+    GLfloat* verts = (GLfloat*) malloc(size);
+
+    GLfloat* vert = verts;
+    for (int slice = 0; slice < slices; slice++) {
+        float theta = slice * 2.0f * Pi / (slices - 1);
+        for (int stack = 0; stack < stacks; stack++) {
+            float phi = stack * 2.0f * Pi / (stacks - 1);
+            *vert++ =  sin(theta) * cos(phi);
+            *vert++ =  cos(theta);
+            *vert++ = -sin(theta) * sin(phi);
+            *vert++ = (float) slice / (slices-1);
+            *vert++ = (float) stack / (stacks-1);
+        }
+    }
+
+    GLuint handle;
+    glGenBuffers(1, &handle);
+    glBindBuffer(GL_ARRAY_BUFFER, handle);
+    glBufferData(GL_ARRAY_BUFFER, size, verts, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(a("Position"));
+    glVertexAttribPointer(a("Position"), 3, GL_FLOAT, GL_FALSE, vertexStride, 0);
+    if (a("TexCoord") != -1) {
+        glEnableVertexAttribArray(a("TexCoord"));
+        glVertexAttribPointer(a("TexCoord"), 2, GL_FLOAT, GL_FALSE, vertexStride, offset(12));
+    }
+
+    free(verts);
+
+    Globals.IndexCount = (slices-1) * (stacks-1) * 6;
+    size = Globals.IndexCount * sizeof(GLushort);
+    GLushort* indices = (GLushort*) malloc(size);
+    GLushort* index = indices;
+    int v = 0;
+    for (int i = 0; i < slices-1; i++) {
+        for (int j = 0; j < stacks-1; j++) {
+            int next = (j + 1) % stacks;
+            *index++ = (v+next+stacks) % vertexCount;
+            *index++ = (v+next) % vertexCount;
+            *index++ = (v+j) % vertexCount;
+            *index++ = (v+j) % vertexCount;
+            *index++ = (v+j+stacks) % vertexCount;
+            *index++ = (v+next+stacks) % vertexCount;
+        }
+        v += stacks;
+    }
+    glGenBuffers(1, &handle);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, handle);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices, GL_STATIC_DRAW);
+
+    free(indices);
+    return vao;
+}
+
 void PezInitialize()
 {
-    Globals.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
-
     PezConfig cfg = PezGetConfig();
 
     float fovy = 170 * TwoPi / 180;
     float aspect = (float) cfg.Width / cfg.Height;
     float zNear = 65, zFar = 90;
     Globals.Projection = M4MakePerspective(fovy, aspect, zNear, zFar);
+    Globals.Theta = 0;
 
     const float MajorRadius = 11.0f, MinorRadius = 1.5f;
+    const float Radius = 5.0f;
     const int Slices = 60, Stacks = 30;
+
+    Globals.LavaProgram = LoadProgram("TheGameMaker.VS", 0, "TheGameMaker.FS");
     Globals.TorusVao = CreateTorus(MajorRadius, MinorRadius, Slices, Stacks);
-    Globals.Theta = 0;
+
+    Globals.ReflectionProgram = LoadProgram("Reflection.VS", 0, "Reflection.FS");
+    Globals.SphereVao = CreateSphere(Radius, Slices, Stacks);
 
     // Load textures
     Globals.CloudTexture = LoadTexture("cloud.png");

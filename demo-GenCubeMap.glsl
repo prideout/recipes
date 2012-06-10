@@ -114,3 +114,29 @@ void main()
     float gray = dot(c,c);
     FragColor = vec4(gray > Threshold ? c : Black, 1);
 }
+
+
+-- Reflection.VS
+
+in vec4 Position;
+in vec2 TexCoord;
+
+uniform mat4 Projection;
+uniform mat4 Modelview;
+
+out vec2 vTexCoord;
+
+void main()
+{
+    vTexCoord = vec2( 5.0, 1.0 ) * TexCoord;
+    gl_Position = Projection * Modelview * Position;
+}
+
+-- Reflection.FS
+
+out vec4 FragColor;
+
+void main()
+{
+    FragColor = vec4(1);
+}
