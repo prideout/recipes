@@ -8,8 +8,3 @@ To build and run a single recipe, type this:
 To build all the recipes, type this:
 
     make -j all
-
-Note: the following recipes often provoke driver issues:
-
-    DeepOpacity
-    Raycast
