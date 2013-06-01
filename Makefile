@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-std=c99 -Wall -c -Wc++-compat -O3
-LIBS=-lX11 -lGL -lpng
+LIBS=-lX11 -lGL -lpng -lm
 DEMOS=\
 	GenCubeMap \
 	Lava \
